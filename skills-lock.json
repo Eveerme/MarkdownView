@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "skills": {
+    "vibestart": {
+      "source": "VinkyDev/vibestart",
+      "sourceType": "github",
+      "skillPath": "skills/vibestart/SKILL.md",
+      "computedHash": "9bdfac16c802044cc3235e1181cee1b725aae996edbdbb50409bb60d4362a63d"
+    }
+  }
+}
