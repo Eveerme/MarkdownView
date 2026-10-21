@@ -10,7 +10,13 @@ export default defineConfig({
   forbidOnly: ci,
   fullyParallel: true,
   globalSetup: "./tests/e2e/global-setup.ts",
-  projects: [{ name: "chromium", use: devices["Desktop Chrome"] }],
+  // The installed Chrome, so the suite runs without Playwright's browser download.
+  projects: [
+    {
+      name: "chromium",
+      use: { ...devices["Desktop Chrome"], channel: "chrome" },
+    },
+  ],
   reporter: ci ? [["github"], ["html", { open: "never" }]] : "list",
   testDir: "tests/e2e",
   testMatch: "**/*.e2e.ts",

@@ -30,4 +30,4 @@ vp run test:e2e   # end-to-end tests (Playwright) in Chromium, against the dev s
 vp run ready      # check + knip + test + test:e2e + production build
 ```
 
-The first `vp run test:e2e` needs a browser: `cd apps/web && vp exec playwright install chromium`.
+The end-to-end tests drive the installed Google Chrome (`channel: "chrome"`), so no Playwright browser download is needed.
