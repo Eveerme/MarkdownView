@@ -2,6 +2,8 @@
 
 一个专注写作、离线可用的本地 Markdown 编辑器。左侧写源码，右侧实时预览，笔记直接读写本地磁盘，不经过网络。
 
+**下载安装包**：[GitHub Releases](https://github.com/Eveerme/MarkdownView/releases/latest) · Windows 10/11 x64
+
 ![MarkdownView 界面](docs/screenshot.png)
 
 ## 功能特性
