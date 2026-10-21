@@ -1,5 +1,5 @@
 appId: com.markdownview.desktop
-productName: markdownview
+productName: MarkdownView
 asar: true
 npmRebuild: false
 directories:
@@ -8,14 +8,21 @@ files:
   - dist/main/**/*
   - dist/preload/**/*
   - dist/renderer/**/*
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  shortcutName: MarkdownView
 mac:
-  category: public.app-category.developer-tools
+  category: public.app-category.productivity
   target:
     - dmg
     - zip
 win:
+  icon: build/icon.png
   target:
     - nsis
 linux:
+  icon: build/icon.png
   target:
     - AppImage

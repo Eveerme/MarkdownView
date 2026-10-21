@@ -15,4 +15,6 @@ export default defineConfig({
     target: "node22",
   },
   publicDir: false,
+  // The main process ships inside app.asar with no node_modules, so its code must be self-contained.
+  ssr: { noExternal: true },
 });

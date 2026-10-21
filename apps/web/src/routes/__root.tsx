@@ -10,8 +10,6 @@ import { ThemeProvider } from "next-themes";
 
 import { Toaster } from "@markdownview/ui/components/sonner";
 
-import { Header } from "#src/components/header.tsx";
-
 interface RouterContext {
   queryClient: QueryClient;
 }
@@ -24,21 +22,20 @@ const RootLayout = () => (
     scriptProps={{ type: "application/json" }}
   >
     <HeadContent />
-    <div className="grid min-h-svh grid-rows-[auto_1fr]">
-      <Header />
-      <main className="mx-auto w-full max-w-2xl px-4 py-10 sm:py-14">
-        <Outlet />
-      </main>
-    </div>
-    <Toaster richColors />
-    <TanStackRouterDevtools position="bottom-left" />
-    <ReactQueryDevtools buttonPosition="bottom-right" />
+    <Outlet />
+    <Toaster position="bottom-right" richColors />
+    {import.meta.env.DEV ? (
+      <>
+        <TanStackRouterDevtools position="bottom-left" />
+        <ReactQueryDevtools buttonPosition="bottom-right" />
+      </>
+    ) : null}
   </ThemeProvider>
 );
 
 export const Route = createRootRouteWithContext<RouterContext>()({
   head: () => ({
-    meta: [{ title: "markdownview" }],
+    meta: [{ title: "MarkdownView" }],
   }),
   component: RootLayout,
 });

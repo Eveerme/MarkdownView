@@ -13,15 +13,25 @@
     "test:e2e": "playwright test"
   },
   "dependencies": {
+    "@codemirror/lang-markdown": "catalog:",
+    "@codemirror/language": "catalog:",
+    "@codemirror/state": "catalog:",
+    "@codemirror/view": "catalog:",
+    "@lezer/highlight": "catalog:",
+    "@markdownview/electron": "catalog:",
     "@markdownview/ui": "workspace:*",
     "@tanstack/react-query": "catalog:",
     "@tanstack/react-query-devtools": "catalog:",
     "@tanstack/react-router": "catalog:",
     "@tanstack/react-router-devtools": "catalog:",
+    "@uiw/react-codemirror": "catalog:",
     "lucide-react": "catalog:",
     "next-themes": "catalog:",
     "react": "catalog:",
     "react-dom": "catalog:",
+    "react-markdown": "catalog:",
+    "rehype-highlight": "catalog:",
+    "remark-gfm": "catalog:",
     "sonner": "catalog:"
   },
   "devDependencies": {

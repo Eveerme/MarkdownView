@@ -48,6 +48,18 @@ catalog:
   # desktop
   electron: ^44.9.0
   electron-builder: ^26.15.3
+  "@codemirror/lang-markdown": ^6.5.2
+  "@codemirror/state": ^6.7.6
+  "@codemirror/view": ^6.43.15
+  "@fontsource-variable/jetbrains-mono": ^5.3.0
+  "@fontsource-variable/newsreader": ^5.3.0
+  "@uiw/react-codemirror": ^4.25.12
+  react-markdown: ^10.1.0
+  rehype-highlight: ^7.0.2
+  remark-gfm: ^4.0.1
+  "@markdownview/electron": workspace:*
+  "@lezer/highlight": ^1.2.5
+  "@codemirror/language": ^6.13.1
 
 overrides:
   vite@*: "catalog:"

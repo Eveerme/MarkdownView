@@ -52,6 +52,14 @@ export default defineConfig({
     options: { typeAware: true, typeCheck: true },
     overrides: [
       {
+        files: ["apps/web/src/**"],
+        rules: {
+          // UI handlers detach async commands; `void` marks the promise that
+          // typescript/no-floating-promises requires. The two rules conflict.
+          "no-void": "off",
+        },
+      },
+      {
         files: ["apps/web/src/routes/**"],
         rules: {
           // A route module exports its `Route` beside the components it renders.

@@ -9,6 +9,8 @@ coverage
 release
 playwright-report
 test-results
+deploy
+.openchamber
 
 .env
 .env.*
