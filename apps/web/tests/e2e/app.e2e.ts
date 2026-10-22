@@ -30,6 +30,36 @@ test("typing Markdown renders in the preview", async ({ page }) => {
   await expect(page.locator(".markdown-body strong")).toHaveText("粗体");
 });
 
+test("raw HTML blocks render in the preview", async ({ page }) => {
+  await visit(page, "/");
+
+  await page.locator(".cm-content").click();
+  await page.keyboard.press("Control+A");
+  await page.keyboard.insertText(
+    [
+      '<p align="center">',
+      '  <a href="https://example.com/releases"><img src="https://example.com/badge.svg" alt="版本" width="80"/></a>',
+      "</p>",
+      "",
+      '<p align="center"><video src="https://example.com/demo.mp4" width="360" controls></video></p>',
+    ].join("\n")
+  );
+
+  const centered = page.locator('.markdown-body p[align="center"]');
+  await expect(centered).toHaveCount(2);
+  // Chromium reports the legacy align attribute as a -webkit-center computed
+  // value, not the standard center keyword.
+  await expect
+    .poll(
+      async () =>
+        await centered.first().evaluate((el) => getComputedStyle(el).textAlign)
+    )
+    .toMatch(/center/u);
+  await expect(centered.first().locator("a img")).toHaveCount(1);
+  await expect(centered.last().locator("video")).toHaveCount(1);
+  await expect(centered.last().locator("video")).toHaveAttribute("controls");
+});
+
 test("preview mode hides the source pane", async ({ page }) => {
   await visit(page, "/");
 

@@ -10,10 +10,12 @@ import type { ComponentProps } from "react";
 import Markdown from "react-markdown";
 import type { Components } from "react-markdown";
 import rehypeHighlight from "rehype-highlight";
+import rehypeRaw from "rehype-raw";
 import rehypeSlug from "rehype-slug";
 import remarkGfm from "remark-gfm";
 
 import { assetUrl } from "#src/lib/asset-url.ts";
+import { rehypeHtmlBlocks } from "#src/lib/html-blocks.ts";
 import { rehypeSourceLines } from "#src/lib/source-lines.ts";
 
 interface PreviewScrollTarget {
@@ -83,7 +85,20 @@ const MarkdownImage = ({ alt, src, ...rest }: ComponentProps<"img">) => {
   );
 };
 
-const components: Components = { a: MarkdownLink, img: MarkdownImage };
+const MarkdownVideo = ({ src, ...rest }: ComponentProps<"video">) => {
+  const resolveAsset = useContext(AssetUrlContext);
+
+  // The video element mirrors the document author's markup, including the
+  // absence of caption tracks; there is no caption source to synthesize here.
+  // oxlint-disable-next-line jsx-a11y/media-has-caption
+  return <video {...rest} src={resolveAsset(src) ?? src} />;
+};
+
+const components: Components = {
+  a: MarkdownLink,
+  img: MarkdownImage,
+  video: MarkdownVideo,
+};
 
 export const PreviewPane = ({
   content,
@@ -196,7 +211,13 @@ export const PreviewPane = ({
             <article className="markdown-body markdown-page mx-auto w-full px-8 pt-12 pb-24 sm:px-10">
               <Markdown
                 components={components}
-                rehypePlugins={[rehypeSlug, rehypeHighlight, rehypeSourceLines]}
+                rehypePlugins={[
+                  rehypeRaw,
+                  rehypeHtmlBlocks,
+                  rehypeSlug,
+                  rehypeHighlight,
+                  rehypeSourceLines,
+                ]}
                 remarkPlugins={[remarkGfm]}
               >
                 {content}

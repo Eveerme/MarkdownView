@@ -38,6 +38,43 @@ describe("exported Markdown", () => {
     expect(html).toContain("hljs-keyword");
   });
 
+  it("renders README-style HTML blocks with their layout and media tags", async () => {
+    const html = await renderMarkdownHtml(
+      [
+        '<p align="center">',
+        '  <a href="https://github.com/x/y"><img src="https://img.shields.io/v.svg" alt="版本" width="80"/></a>',
+        "</p>",
+        "",
+        '<p align="center"><video src="https://x/y.mp4?raw=true" width="360" controls></video></p>',
+      ].join("\n")
+    );
+
+    // The alignment, the badge, and the media tag must all survive the
+    // sanitize allowlist — this is the README hero block that used to vanish.
+    expect(html).toContain('<p align="center">');
+    expect(html).toContain('href="https://github.com/x/y"');
+    expect(html).toContain('src="https://img.shields.io/v.svg"');
+    expect(html).toMatch(
+      /<video(?=[^>]*src="https:\/\/x\/y\.mp4\?raw=true")(?=[^>]*controls[ >])/u
+    );
+  });
+
+  it("drops script and style elements together with their contents", async () => {
+    const html = await renderMarkdownHtml(
+      [
+        "<script>alert(1)</script>",
+        "",
+        "<style>body { color: red }</style>",
+        "",
+        "<p>保留</p>",
+      ].join("\n")
+    );
+
+    expect(html).not.toContain("alert");
+    expect(html).not.toContain("color: red");
+    expect(html).toContain("<p>保留</p>");
+  });
+
   it("drops script URLs but keeps image data URLs", async () => {
     const scriptScheme = ["java", "script"].join("");
 

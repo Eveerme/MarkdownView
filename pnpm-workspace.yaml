@@ -64,6 +64,8 @@ catalog:
   "@uiw/react-codemirror": ^4.25.12
   react-markdown: ^10.1.0
   rehype-highlight: ^7.0.2
+  rehype-raw: ^7.0.0
+  rehype-sanitize: ^6.0.0
   remark-gfm: ^4.0.1
   remark-rehype: ^11.1.2
   "@markdownview/electron": workspace:*

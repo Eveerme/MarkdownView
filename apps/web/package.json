@@ -33,6 +33,8 @@
     "react-dom": "catalog:",
     "react-markdown": "catalog:",
     "rehype-highlight": "catalog:",
+    "rehype-raw": "catalog:",
+    "rehype-sanitize": "catalog:",
     "rehype-slug": "catalog:",
     "rehype-stringify": "catalog:",
     "remark-gfm": "catalog:",

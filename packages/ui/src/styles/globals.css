@@ -530,7 +530,8 @@
   margin: 2.4em 0;
 }
 
-.markdown-body img {
+.markdown-body img,
+.markdown-body video {
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   height: auto;

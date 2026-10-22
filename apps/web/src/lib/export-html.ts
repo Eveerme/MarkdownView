@@ -1,44 +1,20 @@
-import type { Element, Root } from "hast";
 import rehypeHighlight from "rehype-highlight";
+import rehypeRaw from "rehype-raw";
 import rehypeSlug from "rehype-slug";
 import rehypeStringify from "rehype-stringify";
 import remarkGfm from "remark-gfm";
 import remarkParse from "remark-parse";
 import remarkRehype from "remark-rehype";
 import { unified } from "unified";
-import { visit } from "unist-util-visit";
 
-const dangerousUrl = /^\s*(?:javascript|vbscript|data):/iu;
-const imageDataUrl = /^\s*data:image\//iu;
-
-/** Markdown can carry URLs; only images may use a data URL. */
-const sanitizeUrls = () => (tree: Root) => {
-  visit(tree, "element", (node: Element) => {
-    if (node.tagName === "a") {
-      const { href } = node.properties;
-
-      if (dangerousUrl.test(String(href))) {
-        delete node.properties.href;
-      }
-
-      return;
-    }
-
-    if (node.tagName === "img") {
-      const { src } = node.properties;
-
-      if (dangerousUrl.test(String(src)) && !imageDataUrl.test(String(src))) {
-        delete node.properties.src;
-      }
-    }
-  });
-};
+import { rehypeHtmlBlocks } from "#src/lib/html-blocks.ts";
 
 const processor = unified()
   .use(remarkParse)
   .use(remarkGfm)
-  .use(remarkRehype)
-  .use(sanitizeUrls)
+  .use(remarkRehype, { allowDangerousHtml: true })
+  .use(rehypeRaw)
+  .use(rehypeHtmlBlocks)
   .use(rehypeSlug)
   .use(rehypeHighlight)
   .use(rehypeStringify);
@@ -162,7 +138,8 @@ body {
 }
 .markdown-body blockquote p { margin: 0.45em 0; }
 .markdown-body hr { border: 0; border-top: 1px solid var(--border); margin: 2.4em 0; }
-.markdown-body img {
+.markdown-body img,
+.markdown-body video {
   border: 1px solid var(--border);
   border-radius: var(--radius);
   height: auto;
@@ -263,7 +240,8 @@ body {
   .markdown-body blockquote,
   .markdown-body table,
   .markdown-body figure,
-  .markdown-body img { break-inside: avoid; }
+  .markdown-body img,
+  .markdown-body video { break-inside: avoid; }
   @page { margin: 18mm 16mm; size: A4; }
 }
 `;
