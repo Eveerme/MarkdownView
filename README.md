@@ -67,7 +67,7 @@ vp run build           # 构建 Web 渲染层、主进程与 preload
 vp run package:desktop # 生成 Windows 安装包
 ```
 
-安装包输出到 `apps/desktop/release/`，文件名形如 `MarkdownView Setup 0.3.0.exe`。
+安装包输出到 `apps/desktop/release/`，文件名形如 `MarkdownView Setup 0.3.1.exe`。
 
 国内网络下载 Electron / electron-builder 依赖较慢时，可以先设置镜像：
 
