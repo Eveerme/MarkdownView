@@ -368,14 +368,19 @@
 
 .split-panes {
   --split-ratio: 50%;
+  --split-editor-min: 220px;
+  --split-preview-min: 250px;
 }
 
 .split-editor {
-  flex: 0 0 var(--split-ratio);
+  flex: 0 1 var(--split-ratio);
+  /* A narrow window keeps both panes usable: the source shrinks first. */
+  min-width: var(--split-editor-min);
 }
 
 .split-preview {
   flex: 1 1 0;
+  min-width: var(--split-preview-min);
 }
 
 /* The preview surface owns its own scrolling for the split-scroll sync. */

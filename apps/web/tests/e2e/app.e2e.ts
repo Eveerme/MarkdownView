@@ -198,6 +198,54 @@ test("the width setting sizes both the editor and the preview", async ({
   expect(await widthOf(".markdown-page")).toBeGreaterThan(narrowPreview + 80);
 });
 
+test("a narrow window keeps every pane inside the frame", async ({ page }) => {
+  await page.setViewportSize({ height: 700, width: 720 });
+  await visit(page, "/");
+
+  await page.evaluate(() => {
+    localStorage.setItem("markdownview:split-ratio", "0.72");
+  });
+  await page.reload({ waitUntil: "networkidle" });
+
+  await page.locator(".cm-content").click();
+  await page.keyboard.press("Control+A");
+  await page.keyboard.insertText(
+    [
+      "| 事实 | 来源 | 意义 |",
+      "| --- | --- | --- |",
+      "| 液态玻璃 Web 实现 = backdrop-filter 底 + SVG feDisplacementMap 折射 + inset 高光描边 | kube.io / LogRobot / nikdelvin 等 | 分层栈方案确定；折射仅渐进增强 |",
+      "| `@supports` 降级与滚动区伪影是已知坑 | MDN / StackOverflow | 性能红线与降级策略写入 ADR-0008 |",
+      "| `swagger-parser:2.1.47` 支持 3.0/3.1、自动解 $ref | Maven/官方仓库 | OpenAPI 解析零自研 |",
+    ].join("\n")
+  );
+
+  const layout = await page.evaluate(() => {
+    const header = document.querySelector("header");
+    const root = document.querySelector("#root > div");
+    const preview = document.querySelector(".preview-scroll");
+
+    if (
+      !(header instanceof HTMLElement) ||
+      !(root instanceof HTMLElement) ||
+      !(preview instanceof HTMLElement)
+    ) {
+      return null;
+    }
+
+    return {
+      headerFits: header.scrollWidth <= header.clientWidth,
+      previewRight: preview.getBoundingClientRect().right,
+      rootScrollWidth: root.scrollWidth,
+      windowWidth: window.innerWidth,
+    };
+  });
+
+  expect(layout).not.toBeNull();
+  expect(layout?.rootScrollWidth).toBeLessThanOrEqual(layout?.windowWidth ?? 0);
+  expect(layout?.previewRight).toBeLessThanOrEqual(layout?.windowWidth ?? 0);
+  expect(layout?.headerFits).toBeTruthy();
+});
+
 test("the pure white theme clears the paper tint", async ({ page }) => {
   await visit(page, "/");
 

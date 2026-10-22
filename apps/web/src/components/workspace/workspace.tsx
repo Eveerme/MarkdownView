@@ -16,6 +16,11 @@ import { useWorkspace } from "#src/lib/use-workspace.ts";
 const clamp = (value: number, min: number, max: number) =>
   Math.min(max, Math.max(min, value));
 
+/** The split minimums are px lengths in CSS, which Number() would read as NaN. */
+const pixels = (styles: CSSStyleDeclaration, property: string) =>
+  // oxlint-disable-next-line unicorn/prefer-number-coercion
+  Number.parseFloat(styles.getPropertyValue(property)) || 0;
+
 type CustomProperties = CSSProperties & Record<`--${string}`, string>;
 
 export const Workspace = () => {
@@ -76,9 +81,22 @@ export const Workspace = () => {
     event.preventDefault();
 
     const bounds = container.getBoundingClientRect();
+    const styles = getComputedStyle(container);
+    const editorMin = pixels(styles, "--split-editor-min");
+    const previewMin = pixels(styles, "--split-preview-min");
+    const dividerWidth = event.currentTarget.getBoundingClientRect().width;
+    // Dragging stops where the CSS floor stops, so the handle stays under the pointer.
+    const lowest = Math.max(0.28, editorMin / bounds.width);
+
+    const highest = Math.min(
+      0.72,
+      (bounds.width - dividerWidth - previewMin) / bounds.width
+    );
 
     const move = (moveEvent: PointerEvent) => {
-      applyRatio((moveEvent.clientX - bounds.left) / bounds.width);
+      const next = (moveEvent.clientX - bounds.left) / bounds.width;
+
+      applyRatio(Math.min(Math.max(next, lowest), Math.max(lowest, highest)));
     };
 
     const stop = () => {
@@ -137,7 +155,7 @@ export const Workspace = () => {
         sidebarOpen={workspace.sidebarOpen}
       />
 
-      <div className="flex min-h-0">
+      <div className="flex min-h-0 min-w-0">
         {workspace.isDesktop && workspace.sidebarOpen ? (
           <FileSidebar
             activePath={workspace.filePath}
@@ -177,7 +195,7 @@ export const Workspace = () => {
         ) : null}
 
         <div
-          className={`flex min-h-0 flex-1 ${split ? "split-panes" : ""}`}
+          className={`flex min-h-0 min-w-0 flex-1 ${split ? "split-panes" : ""}`}
           ref={panes}
         >
           {workspace.mode === "preview" ? null : (
