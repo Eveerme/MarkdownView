@@ -48,7 +48,7 @@ export const Workspace = () => {
   const stageStyle: CustomProperties = {
     "--editor-font-size": `${settings.editorFontSize}px`,
     "--preview-font-size": `${settings.previewFontSize}px`,
-    "--preview-measure": `${settings.previewWidth}ch`,
+    "--reading-measure": `${settings.readingWidth}ch`,
   };
 
   const startResize = (event: ReactPointerEvent<HTMLButtonElement>) => {

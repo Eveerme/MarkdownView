@@ -321,7 +321,7 @@
 }
 
 .markdown-page {
-  max-width: var(--preview-measure, 76ch);
+  max-width: var(--reading-measure, 76ch);
 }
 
 .markdown-body > :first-child {
@@ -591,7 +591,7 @@
 /* With the gutter on, the numbers follow the text column instead of the pane
    edge, which the centered draft layout would otherwise leave far behind. */
 .editor-pane:has(.cm-lineNumbers) .cm-gutters {
-  margin-left: max(0px, calc((100% - 74ch - 4rem) / 2));
+  margin-left: max(0px, calc((100% - var(--reading-measure, 74ch) - 4rem) / 2));
 }
 
 .editor-pane:has(.cm-lineNumbers) .cm-content {
@@ -601,7 +601,7 @@
 .editor-pane .cm-content {
   caret-color: var(--primary);
   margin: 0 auto;
-  max-width: 74ch;
+  max-width: var(--reading-measure, 74ch);
   padding: 2.5rem 2rem 9rem;
 }
 

@@ -132,7 +132,7 @@ export const SettingsDialog = () => {
 
   const editorSize = settingsRanges.editorFontSize;
   const previewSize = settingsRanges.previewFontSize;
-  const measure = settingsRanges.previewWidth;
+  const measure = settingsRanges.readingWidth;
 
   return (
     <Dialog onOpenChange={setOpen} open={open}>
@@ -183,6 +183,17 @@ export const SettingsDialog = () => {
               suffix=" px"
               value={settings.editorFontSize}
             />
+            <SliderRow
+              description="每行容纳的字符数，编辑区与预览共用这一列宽。"
+              label="正文宽度"
+              max={measure.max}
+              min={measure.min}
+              onChange={(readingWidth) => {
+                update({ readingWidth });
+              }}
+              suffix=" 字符"
+              value={settings.readingWidth}
+            />
           </Section>
 
           <Section title="分屏">
@@ -207,17 +218,6 @@ export const SettingsDialog = () => {
               }}
               suffix=" px"
               value={settings.previewFontSize}
-            />
-            <SliderRow
-              description="每行容纳的字符数，决定阅读时的行宽。"
-              label="正文宽度"
-              max={measure.max}
-              min={measure.min}
-              onChange={(previewWidth) => {
-                update({ previewWidth });
-              }}
-              suffix=" 字符"
-              value={settings.previewWidth}
             />
           </Section>
 

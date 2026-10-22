@@ -3,7 +3,7 @@ export interface AppSettings {
   editorFontSize: number;
   lineNumbers: boolean;
   previewFontSize: number;
-  previewWidth: number;
+  readingWidth: number;
   splitRatio: number;
   syncScroll: boolean;
   wordWrap: boolean;
@@ -23,7 +23,8 @@ const settingKeys = {
   editorFontSize: `${prefix}editor-font-size`,
   lineNumbers: `${prefix}line-numbers`,
   previewFontSize: `${prefix}preview-font-size`,
-  previewWidth: `${prefix}preview-width`,
+  // The width now sizes both panes; the key keeps its 0.3.2 name so stored preferences survive.
+  readingWidth: `${prefix}preview-width`,
   splitRatio: `${prefix}split-ratio`,
   syncScroll: `${prefix}sync-scroll`,
   wordWrap: `${prefix}word-wrap`,
@@ -32,7 +33,7 @@ const settingKeys = {
 export const settingsRanges = {
   editorFontSize: { max: 20, min: 12 },
   previewFontSize: { max: 24, min: 14 },
-  previewWidth: { max: 96, min: 56 },
+  readingWidth: { max: 96, min: 56 },
   splitRatio: { max: 0.72, min: 0.28 },
 } as const satisfies Record<string, NumericRange>;
 
@@ -41,7 +42,7 @@ export const defaultSettings: AppSettings = {
   editorFontSize: 14,
   lineNumbers: false,
   previewFontSize: 17,
-  previewWidth: 76,
+  readingWidth: 76,
   splitRatio: 0.5,
   syncScroll: true,
   wordWrap: true,
@@ -116,11 +117,11 @@ export const readSettings = (
         defaultSettings.previewFontSize,
         settingsRanges.previewFontSize
       ),
-      previewWidth: readNumber(
+      readingWidth: readNumber(
         storage,
-        settingKeys.previewWidth,
-        defaultSettings.previewWidth,
-        settingsRanges.previewWidth
+        settingKeys.readingWidth,
+        defaultSettings.readingWidth,
+        settingsRanges.readingWidth
       ),
       splitRatio: readNumber(
         storage,
@@ -163,7 +164,7 @@ export const writeSettings = (
       settingKeys.previewFontSize,
       String(settings.previewFontSize)
     );
-    storage.setItem(settingKeys.previewWidth, String(settings.previewWidth));
+    storage.setItem(settingKeys.readingWidth, String(settings.readingWidth));
     storage.setItem(settingKeys.splitRatio, String(settings.splitRatio));
     storage.setItem(settingKeys.syncScroll, String(settings.syncScroll));
     storage.setItem(settingKeys.wordWrap, String(settings.wordWrap));
@@ -187,9 +188,9 @@ export const normalizeSettings = (settings: AppSettings): AppSettings => ({
     settingsRanges.previewFontSize.max,
     Math.max(settingsRanges.previewFontSize.min, settings.previewFontSize)
   ),
-  previewWidth: Math.min(
-    settingsRanges.previewWidth.max,
-    Math.max(settingsRanges.previewWidth.min, settings.previewWidth)
+  readingWidth: Math.min(
+    settingsRanges.readingWidth.max,
+    Math.max(settingsRanges.readingWidth.min, settings.readingWidth)
   ),
   splitRatio: Math.min(
     settingsRanges.splitRatio.max,

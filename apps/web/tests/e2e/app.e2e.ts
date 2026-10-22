@@ -166,3 +166,34 @@ test("settings turn on line numbers and keep the choice", async ({ page }) => {
   await page.reload({ waitUntil: "networkidle" });
   await expect(page.locator(".cm-lineNumbers")).toBeVisible();
 });
+
+test("the width setting sizes both the editor and the preview", async ({
+  page,
+}) => {
+  await page.setViewportSize({ height: 900, width: 1600 });
+  await visit(page, "/");
+
+  const widthOf = async (selector: string) => {
+    const width = await page
+      .locator(selector)
+      .evaluate((element) => element.getBoundingClientRect().width);
+
+    return width;
+  };
+
+  await page.evaluate(() => {
+    localStorage.setItem("markdownview:preview-width", "56");
+  });
+  await page.reload({ waitUntil: "networkidle" });
+
+  const narrowEditor = await widthOf(".cm-content");
+  const narrowPreview = await widthOf(".markdown-page");
+
+  await page.evaluate(() => {
+    localStorage.setItem("markdownview:preview-width", "96");
+  });
+  await page.reload({ waitUntil: "networkidle" });
+
+  expect(await widthOf(".cm-content")).toBeGreaterThan(narrowEditor + 80);
+  expect(await widthOf(".markdown-page")).toBeGreaterThan(narrowPreview + 80);
+});

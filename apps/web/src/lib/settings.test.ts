@@ -40,7 +40,7 @@ describe("settings", () => {
       editorFontSize: 18,
       lineNumbers: true,
       previewFontSize: 21,
-      previewWidth: 64,
+      readingWidth: 64,
       splitRatio: 0.4,
       syncScroll: false,
       wordWrap: false,
@@ -60,7 +60,7 @@ describe("settings", () => {
     });
 
     expect(readSettings(storage).editorFontSize).toBe(20);
-    expect(readSettings(storage).previewWidth).toBe(56);
+    expect(readSettings(storage).readingWidth).toBe(56);
     expect(readSettings(storage).splitRatio).toBe(0.72);
   });
 
