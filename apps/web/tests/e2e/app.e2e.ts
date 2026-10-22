@@ -197,3 +197,81 @@ test("the width setting sizes both the editor and the preview", async ({
   expect(await widthOf(".cm-content")).toBeGreaterThan(narrowEditor + 80);
   expect(await widthOf(".markdown-page")).toBeGreaterThan(narrowPreview + 80);
 });
+
+test("the pure white theme clears the paper tint", async ({ page }) => {
+  await visit(page, "/");
+
+  await page.getByRole("button", { name: "Toggle theme" }).click();
+  await page.getByRole("menuitemradio", { name: "Pure white" }).click();
+
+  await expect(page.locator("html")).toHaveClass(/\bwhite\b/u);
+
+  // Paint the computed color and read the pixel, so the palette's syntax stays free.
+  const background = await page.evaluate(() => {
+    const canvas = document.createElement("canvas");
+    const context = canvas.getContext("2d");
+
+    if (context === null) {
+      return "";
+    }
+
+    context.fillStyle = getComputedStyle(document.body).backgroundColor;
+    context.fillRect(0, 0, 1, 1);
+
+    const [red, green, blue] = context.getImageData(0, 0, 1, 1).data;
+
+    return `${red},${green},${blue}`;
+  });
+
+  expect(background).toBe("255,255,255");
+});
+
+test("clicking a preview block moves the caret to its source line", async ({
+  page,
+}) => {
+  await visit(page, "/");
+
+  await page.locator(".cm-content").click();
+  await page.keyboard.press("Control+A");
+  await page.keyboard.insertText(
+    ["# 开头", "正文一段。", "## 目标", "目标段落。"].join("\n\n")
+  );
+
+  await page.getByRole("heading", { name: "目标", level: 2 }).click();
+
+  await expect(page.locator("footer").first()).toContainText("5:1");
+});
+
+test("the status bar counts the selected words", async ({ page }) => {
+  await visit(page, "/");
+
+  await page.locator(".cm-content").click();
+  await page.keyboard.press("Control+A");
+
+  await expect(page.locator("footer").first()).toContainText(/选中 \d+ 字/u);
+});
+
+test("double-clicking the divider resets the split", async ({ page }) => {
+  await visit(page, "/");
+
+  const panes = page.locator(".split-panes");
+
+  const splitRatio = async () => {
+    const value = await panes.evaluate((element) =>
+      getComputedStyle(element).getPropertyValue("--split-ratio").trim()
+    );
+
+    return value;
+  };
+
+  await page.evaluate(() => {
+    localStorage.setItem("markdownview:split-ratio", "0.7");
+  });
+  await page.reload({ waitUntil: "networkidle" });
+
+  await expect.poll(splitRatio).toBe("70%");
+
+  await page.getByRole("button", { name: "调整分栏宽度" }).dblclick();
+
+  await expect.poll(splitRatio).toBe("50%");
+});

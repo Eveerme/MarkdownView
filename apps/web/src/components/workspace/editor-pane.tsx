@@ -7,6 +7,8 @@ import type { ReactCodeMirrorRef } from "@uiw/react-codemirror";
 import { useEffect, useMemo, useRef } from "react";
 import type { ClipboardEvent, DragEvent } from "react";
 
+import { countWords } from "#src/lib/markdown-stats.ts";
+
 const markdownHighlight = HighlightStyle.define([
   {
     tag: [tags.heading1, tags.heading2],
@@ -37,6 +39,7 @@ type ImageHandler = (file: File) => Promise<string | null>;
 export interface EditorCursor {
   column: number;
   line: number;
+  selectedWords: number;
 }
 
 const imageFrom = (data: DataTransfer | null): File | null => {
@@ -110,12 +113,17 @@ export const EditorPane = ({
           return;
         }
 
-        const { head } = update.state.selection.main;
-        const line = update.state.doc.lineAt(head);
+        const selection = update.state.selection.main;
+        const line = update.state.doc.lineAt(selection.head);
+
+        const selected = selection.empty
+          ? 0
+          : countWords(update.state.sliceDoc(selection.from, selection.to));
 
         onCursorChange?.({
-          column: head - line.from + 1,
+          column: selection.head - line.from + 1,
           line: line.number,
+          selectedWords: selected,
         });
       }),
     [onCursorChange]

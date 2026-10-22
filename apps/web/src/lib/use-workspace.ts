@@ -446,6 +446,15 @@ export const useWorkspace = () => {
     }
   };
 
+  /** A click in the preview asks the source pane to put the cursor on that block. */
+  const focusLine = (line: number) => {
+    if (mode === "preview") {
+      return;
+    }
+
+    setEditorReveal({ line, nonce: reveal() });
+  };
+
   const toggleFolder = (key: string) => {
     setExpandedFolders((current) => {
       const next = new Set(current);
@@ -788,6 +797,7 @@ export const useWorkspace = () => {
       clearPreviewAnchor,
       clearRecentFiles,
       exportDocument,
+      focusLine,
       newDocument,
       openFile,
       openFolder,

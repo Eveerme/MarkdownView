@@ -27,6 +27,7 @@ interface PreviewPaneProps {
   onOpenLink?: (href: string) => void;
   onScrollContainerChange?: (element: HTMLDivElement | null) => void;
   onScrollHandled?: () => void;
+  onSelectLine?: (line: number) => void;
   scrollTarget: PreviewScrollTarget | null;
 }
 
@@ -90,11 +91,13 @@ export const PreviewPane = ({
   onOpenLink,
   onScrollContainerChange,
   onScrollHandled,
+  onSelectLine,
   scrollTarget,
 }: PreviewPaneProps) => {
   const container = useRef<HTMLDivElement>(null);
   const linkHandler = useRef(onOpenLink);
   const scrollHandled = useRef(onScrollHandled);
+  const selectLine = useRef(onSelectLine);
 
   const attachContainer = useCallback(
     (element: HTMLDivElement | null) => {
@@ -117,8 +120,46 @@ export const PreviewPane = ({
     scrollHandled.current = onScrollHandled;
   }, [onScrollHandled]);
 
+  useEffect(() => {
+    selectLine.current = onSelectLine;
+  }, [onSelectLine]);
+
   const dispatchOpenLink = useCallback((href: string) => {
     linkHandler.current?.(href);
+  }, []);
+
+  // A plain click on a rendered block puts the source cursor on its line, so
+  // the preview can drive the editing side of a split view. The listener is
+  // delegated: the preview stays a reading surface, not a control.
+  useEffect(() => {
+    const element = container.current;
+
+    const onClick = (event: MouseEvent) => {
+      const { target } = event;
+
+      if (
+        !(target instanceof Element) ||
+        target.closest("a, button, input, label, summary") !== null ||
+        (window.getSelection()?.toString() ?? "") !== ""
+      ) {
+        return;
+      }
+
+      const block = target.closest("[data-line]");
+
+      const line =
+        block instanceof HTMLElement ? Number(block.dataset.line) : Number.NaN;
+
+      if (Number.isFinite(line)) {
+        selectLine.current?.(line);
+      }
+    };
+
+    element?.addEventListener("click", onClick);
+
+    return () => {
+      element?.removeEventListener("click", onClick);
+    };
   }, []);
 
   useEffect(() => {

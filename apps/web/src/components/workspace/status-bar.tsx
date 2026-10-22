@@ -73,6 +73,9 @@ export const StatusBar = ({
         <span title="光标位置">
           {cursor.line}:{cursor.column}
         </span>
+        {cursor.selectedWords > 0 ? (
+          <span>选中 {cursor.selectedWords} 字</span>
+        ) : null}
         <span>{words} 字</span>
         <span className="hidden sm:inline">{characters} 字符</span>
         <span>{lines} 行</span>

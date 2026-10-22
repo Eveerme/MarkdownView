@@ -28,7 +28,14 @@ export const ModeToggle = () => {
         <DropdownMenuRadioGroup onValueChange={setTheme} value={theme}>
           {themeOptions.map(({ label, value }) => (
             <DropdownMenuRadioItem key={value} value={value}>
-              {label}
+              <span className="flex items-center gap-2 whitespace-nowrap">
+                <span
+                  aria-hidden="true"
+                  className="border-border pointer-events-none size-3 shrink-0 rounded-full border"
+                  data-swatch={value}
+                />
+                {label}
+              </span>
             </DropdownMenuRadioItem>
           ))}
         </DropdownMenuRadioGroup>

@@ -1,6 +1,22 @@
-import { BrowserWindow, dialog, nativeTheme, shell } from "electron";
+import path from "node:path";
+
+import {
+  app,
+  BrowserWindow,
+  dialog,
+  nativeTheme,
+  screen,
+  shell,
+} from "electron";
+import type { BrowserWindowConstructorOptions } from "electron";
 
 import { isExternalUrl, isTrustedUrl } from "#src/main/renderer-route.ts";
+import {
+  minimumWindowSize,
+  placeWindow,
+  readWindowState,
+  writeWindowState,
+} from "#src/main/window-state.ts";
 
 // The window shows the app and nothing else: other links open in the user's browser or mail client.
 const openOutside = (target: string) => {
@@ -18,11 +34,21 @@ export const createMainWindow = ({
   preload: string;
   url: string;
 }) => {
-  const win = new BrowserWindow({
+  const statePath = path.join(app.getPath("userData"), "window-state.json");
+  const saved = readWindowState(statePath);
+
+  const display =
+    saved?.x !== undefined && saved.y !== undefined
+      ? screen.getDisplayNearestPoint({ x: saved.x, y: saved.y })
+      : screen.getPrimaryDisplay();
+
+  const placement = placeWindow(saved, display.workArea);
+
+  const options: BrowserWindowConstructorOptions = {
     backgroundColor: nativeTheme.shouldUseDarkColors ? "#1f1c19" : "#fbf7ef",
-    height: 800,
-    minHeight: 520,
-    minWidth: 720,
+    height: placement.height,
+    minHeight: minimumWindowSize.height,
+    minWidth: minimumWindowSize.width,
     show: false,
     webPreferences: {
       contextIsolation: true,
@@ -31,7 +57,28 @@ export const createMainWindow = ({
       sandbox: true,
       webviewTag: false,
     },
-    width: 1280,
+    width: placement.width,
+  };
+
+  if (placement.x !== undefined && placement.y !== undefined) {
+    options.x = placement.x;
+    options.y = placement.y;
+  }
+
+  const win = new BrowserWindow(options);
+
+  if (placement.maximized) {
+    win.maximize();
+  }
+
+  // Maximizing reports the screen bounds; the restored size is what to remember.
+  win.on("close", () => {
+    const maximized = win.isMaximized();
+
+    writeWindowState(statePath, {
+      ...(maximized ? win.getNormalBounds() : win.getBounds()),
+      maximized,
+    });
   });
 
   win.once("ready-to-show", () => {

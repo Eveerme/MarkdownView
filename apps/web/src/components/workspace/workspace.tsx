@@ -28,7 +28,12 @@ export const Workspace = () => {
     null
   );
 
-  const [cursor, setCursor] = useState<EditorCursor>({ column: 1, line: 1 });
+  const [cursor, setCursor] = useState<EditorCursor>({
+    column: 1,
+    line: 1,
+    selectedWords: 0,
+  });
+
   const panes = useRef<HTMLDivElement>(null);
   const ratioRef = useRef(settings.splitRatio);
 
@@ -42,13 +47,23 @@ export const Workspace = () => {
   });
 
   useEffect(() => {
-    panes.current?.style.setProperty("--split-ratio", `${ratio * 100}%`);
+    panes.current?.style.setProperty(
+      "--split-ratio",
+      `${Math.round(ratio * 1000) / 10}%`
+    );
   }, [ratio]);
 
   const stageStyle: CustomProperties = {
     "--editor-font-size": `${settings.editorFontSize}px`,
     "--preview-font-size": `${settings.previewFontSize}px`,
     "--reading-measure": `${settings.readingWidth}ch`,
+  };
+
+  const applyRatio = (next: number) => {
+    const rounded = Math.round(clamp(next, 0.28, 0.72) * 1000) / 1000;
+
+    ratioRef.current = rounded;
+    setRatio(rounded);
   };
 
   const startResize = (event: ReactPointerEvent<HTMLButtonElement>) => {
@@ -63,10 +78,7 @@ export const Workspace = () => {
     const bounds = container.getBoundingClientRect();
 
     const move = (moveEvent: PointerEvent) => {
-      const next = (moveEvent.clientX - bounds.left) / bounds.width;
-
-      ratioRef.current = clamp(next, 0.28, 0.72);
-      setRatio(ratioRef.current);
+      applyRatio((moveEvent.clientX - bounds.left) / bounds.width);
     };
 
     const stop = () => {
@@ -195,7 +207,12 @@ export const Workspace = () => {
             <button
               aria-label="调整分栏宽度"
               className="group relative w-1.5 shrink-0 cursor-col-resize border-0 bg-transparent p-0"
+              onDoubleClick={() => {
+                applyRatio(0.5);
+                update({ splitRatio: ratioRef.current });
+              }}
               onPointerDown={startResize}
+              title="拖动调整宽度，双击恢复 50%"
               type="button"
             >
               <span
@@ -223,6 +240,9 @@ export const Workspace = () => {
                 onScrollContainerChange={setPreviewElement}
                 onScrollHandled={() => {
                   workspace.actions.clearPreviewAnchor();
+                }}
+                onSelectLine={(line) => {
+                  workspace.actions.focusLine(line);
                 }}
                 scrollTarget={workspace.previewAnchor}
               />

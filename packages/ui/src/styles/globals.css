@@ -102,6 +102,50 @@
   --paper-line: oklch(0.905 0.007 78 / 55%);
 }
 
+/* Pure white: no paper tint at all, for screens where the warm cast reads as dirty. */
+.white {
+  color-scheme: light;
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.22 0 0);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.22 0 0);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.22 0 0);
+  --primary: oklch(0.52 0.145 38);
+  --primary-foreground: oklch(0.99 0 0);
+  --secondary: oklch(0.965 0 0);
+  --secondary-foreground: oklch(0.3 0 0);
+  --muted: oklch(0.965 0 0);
+  --muted-foreground: oklch(0.52 0 0);
+  --accent: oklch(0.955 0 0);
+  --accent-foreground: oklch(0.35 0.02 38);
+  --destructive: oklch(0.55 0.2 25);
+  --success: oklch(0.55 0.12 155);
+  --border: oklch(0.9 0 0);
+  --input: oklch(0.88 0 0);
+  --ring: oklch(0.52 0.145 38);
+  --chart-1: oklch(0.9 0 0);
+  --chart-2: oklch(0.76 0.02 38);
+  --chart-3: oklch(0.62 0.06 38);
+  --chart-4: oklch(0.5 0.1 38);
+  --chart-5: oklch(0.4 0.09 36);
+  --sidebar: oklch(0.98 0 0);
+  --sidebar-foreground: oklch(0.22 0 0);
+  --sidebar-primary: oklch(0.52 0.145 38);
+  --sidebar-primary-foreground: oklch(0.99 0 0);
+  --sidebar-accent: oklch(0.955 0 0);
+  --sidebar-accent-foreground: oklch(0.33 0.03 38);
+  --sidebar-border: oklch(0.9 0 0);
+  --sidebar-ring: oklch(0.52 0.145 38);
+  --code-background: oklch(0.965 0 0);
+  --code-foreground: oklch(0.3 0 0);
+  --syntax-keyword: oklch(0.47 0.13 35);
+  --syntax-string: oklch(0.45 0.09 155);
+  --syntax-number: oklch(0.48 0.09 250);
+  --syntax-function: oklch(0.45 0.1 62);
+  --paper-line: oklch(0.92 0 0 / 60%);
+}
+
 .dark {
   color-scheme: dark;
   --background: oklch(0.185 0.007 68);
@@ -289,6 +333,35 @@
   ::selection {
     @apply bg-primary/20;
   }
+}
+
+/* The theme menu shows each palette's paper tone, including the system split. */
+[data-swatch="light"] {
+  background-color: #faf5ec;
+}
+
+[data-swatch="sepia"] {
+  background-color: #f2e6d3;
+}
+
+[data-swatch="forest"] {
+  background-color: #eff6ef;
+}
+
+[data-swatch="white"] {
+  background-color: #ffffff;
+}
+
+[data-swatch="dark"] {
+  background-color: #23201c;
+}
+
+[data-swatch="midnight"] {
+  background-color: #1c2433;
+}
+
+[data-swatch="system"] {
+  background-image: linear-gradient(135deg, #faf5ec 50%, #23201c 50%);
 }
 
 /* Writing surfaces */
