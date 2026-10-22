@@ -50,28 +50,31 @@ describe("the desktop file layer", () => {
 
   describe("listing a folder", () => {
     it("returns nested markdown, sorted, skipping tool folders", async () => {
-      await expect(listMarkdownFiles(root)).resolves.toStrictEqual([
-        {
-          name: "alpha.md",
-          path: path.join(root, "alpha.md"),
-          relativePath: "alpha.md",
-        },
-        {
-          name: "draft.markdown",
-          path: path.join(root, "draft.markdown"),
-          relativePath: "draft.markdown",
-        },
-        {
-          name: "nested.md",
-          path: path.join(root, "notes", "deep", "nested.md"),
-          relativePath: "notes/deep/nested.md",
-        },
-        {
-          name: "zebra.md",
-          path: path.join(root, "zebra.md"),
-          relativePath: "zebra.md",
-        },
-      ]);
+      await expect(listMarkdownFiles(root)).resolves.toStrictEqual({
+        files: [
+          {
+            name: "alpha.md",
+            path: path.join(root, "alpha.md"),
+            relativePath: "alpha.md",
+          },
+          {
+            name: "draft.markdown",
+            path: path.join(root, "draft.markdown"),
+            relativePath: "draft.markdown",
+          },
+          {
+            name: "nested.md",
+            path: path.join(root, "notes", "deep", "nested.md"),
+            relativePath: "notes/deep/nested.md",
+          },
+          {
+            name: "zebra.md",
+            path: path.join(root, "zebra.md"),
+            relativePath: "zebra.md",
+          },
+        ],
+        truncated: false,
+      });
     });
   });
 

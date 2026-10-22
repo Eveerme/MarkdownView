@@ -60,6 +60,14 @@ export default defineConfig({
         },
       },
       {
+        files: ["apps/desktop/src/main/recent-files.ts"],
+        rules: {
+          // A mutex queues callers on a deferred resolver; async/await alone
+          // cannot express a promise that is settled by a later operation.
+          "promise/avoid-new": "off",
+        },
+      },
+      {
         files: ["apps/web/src/routes/**"],
         rules: {
           // A route module exports its `Route` beside the components it renders.
@@ -87,6 +95,7 @@ export default defineConfig({
         test: {
           include: [
             "apps/desktop/src/**/*.test.ts",
+            "apps/web/src/**/*.test.ts",
             "packages/*/src/**/*.test.ts",
           ],
           name: "unit",

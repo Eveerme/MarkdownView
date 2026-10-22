@@ -86,18 +86,38 @@ export const Workspace = () => {
         {workspace.isDesktop && workspace.sidebarOpen ? (
           <FileSidebar
             activePath={workspace.filePath}
-            folder={workspace.folder}
+            expanded={workspace.expandedFolders}
+            folders={workspace.folders}
+            onClearRecent={() => {
+              void workspace.actions.clearRecentFiles();
+            }}
             onOpen={(path) => {
               workspace.actions.openPath(path);
+            }}
+            onOpenFile={() => {
+              workspace.actions.openFile();
             }}
             onOpenFolder={() => {
               workspace.actions.openFolder();
             }}
-            onRefresh={() => {
-              if (workspace.folder !== null) {
-                workspace.actions.refreshFolder(workspace.folder.path);
-              }
+            onRefresh={(folderPath) => {
+              workspace.actions.refreshFolder(folderPath);
             }}
+            onRemove={(folderPath) => {
+              void workspace.actions.removeFolder(folderPath);
+            }}
+            onReveal={(item) => {
+              workspace.actions.revealOutline(item);
+            }}
+            onToggleFolder={(key) => {
+              workspace.actions.toggleFolder(key);
+            }}
+            onViewChange={(view) => {
+              workspace.setSidebarView(view);
+            }}
+            outline={workspace.outline}
+            recentFiles={workspace.recentFiles}
+            view={workspace.sidebarView}
           />
         ) : null}
 
@@ -117,6 +137,7 @@ export const Workspace = () => {
                 onChange={(value) => {
                   workspace.setContent(value);
                 }}
+                reveal={workspace.editorReveal}
                 value={workspace.content}
               />
             </div>
@@ -147,6 +168,13 @@ export const Workspace = () => {
               <PreviewPane
                 content={workspace.content}
                 key={workspace.filePath ?? "scratch"}
+                onOpenLink={(href) => {
+                  void workspace.actions.openLink(href);
+                }}
+                onScrollHandled={() => {
+                  workspace.actions.clearPreviewAnchor();
+                }}
+                scrollTarget={workspace.previewAnchor}
               />
             </div>
           )}

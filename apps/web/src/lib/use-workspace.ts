@@ -1,20 +1,37 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import type {
   MarkdownDocument,
   MarkdownFolder,
   MarkdownSavedFile,
+  RecentFile,
+  ResolvedLink,
 } from "@markdownview/electron";
 
 import { desktop } from "#src/lib/desktop.ts";
+import { rootKey } from "#src/lib/file-tree.ts";
+import type { OutlineItem } from "#src/lib/outline.ts";
+import { useDocumentOutline } from "#src/lib/use-outline.ts";
 import { welcomeDocument } from "#src/lib/welcome-document.ts";
 
 export type ViewMode = "edit" | "split" | "preview";
 
+export type SidebarView = "recent" | "files" | "outline";
+
 interface PendingAction {
   message: string;
   run: () => void;
+}
+
+interface PreviewAnchor {
+  id: string;
+  nonce: number;
+}
+
+interface EditorReveal {
+  line: number;
+  nonce: number;
 }
 
 const modeStorageKey = "markdownview:mode";
@@ -38,17 +55,43 @@ const report = (title: string, error: Error) => {
   toast.error(title, { description: error.message });
 };
 
+const mergeFolders = (
+  current: MarkdownFolder[],
+  incoming: MarkdownFolder[]
+) => {
+  const folders = new Map(current.map((folder) => [folder.path, folder]));
+
+  for (const folder of incoming) {
+    folders.set(folder.path, folder);
+  }
+
+  return [...folders.values()];
+};
+
 export const useWorkspace = () => {
   const bridge = desktop();
   const [content, setContent] = useState(welcomeDocument);
   const [savedContent, setSavedContent] = useState(welcomeDocument);
   const [filePath, setFilePath] = useState<string | null>(null);
   const [fileName, setFileName] = useState("欢迎使用.md");
-  const [folder, setFolder] = useState<MarkdownFolder | null>(null);
+  const [folders, setFolders] = useState<MarkdownFolder[]>([]);
+  const [recentFiles, setRecentFiles] = useState<RecentFile[]>([]);
+
+  const [expandedFolders, setExpandedFolders] = useState<Set<string>>(
+    () => new Set()
+  );
+
   const [mode, setMode] = useState<ViewMode>(storedMode);
   const [sidebarOpen, setSidebarOpen] = useState(bridge !== null);
+  const [sidebarView, setSidebarView] = useState<SidebarView>("recent");
   const [saving, setSaving] = useState(false);
   const [savedAt, setSavedAt] = useState<number | null>(null);
+
+  const [previewAnchor, setPreviewAnchor] = useState<PreviewAnchor | null>(
+    null
+  );
+
+  const [editorReveal, setEditorReveal] = useState<EditorReveal | null>(null);
 
   const [pendingAction, setPendingAction] = useState<PendingAction | null>(
     null
@@ -57,13 +100,20 @@ export const useWorkspace = () => {
   // Autosave resolves after later keystrokes; it must not mark them saved.
   const latestContent = useRef(content);
   const dirty = content !== savedContent;
+  const dirtyRef = useRef(dirty);
+  const revealNonce = useRef(0);
+  const outline = useDocumentOutline(content, filePath);
 
   useEffect(() => {
     latestContent.current = content;
   }, [content]);
 
+  useEffect(() => {
+    dirtyRef.current = dirty;
+  }, [dirty]);
+
   const guard = (run: () => void) => {
-    if (dirty) {
+    if (dirtyRef.current) {
       setPendingAction({ message: discardMessage, run });
 
       return;
@@ -82,17 +132,40 @@ export const useWorkspace = () => {
     }
   };
 
+  const refreshRecentFiles = async () => {
+    if (!bridge) {
+      return;
+    }
+
+    try {
+      setRecentFiles(await bridge.recentFiles());
+    } catch {
+      // The recent list is a convenience; a failed read leaves the old list.
+    }
+  };
+
   const loadDocument = (document: MarkdownDocument) => {
     setContent(document.content);
     setSavedContent(document.content);
     setFilePath(document.path);
     setFileName(document.name);
     setSavedAt(null);
+    setPreviewAnchor(null);
+    setEditorReveal(null);
+    void refreshRecentFiles();
   };
 
   const changeMode = (next: ViewMode) => {
     setMode(next);
     localStorage.setItem(modeStorageKey, next);
+
+    if (next === "edit") {
+      setPreviewAnchor(null);
+    }
+
+    if (next === "preview") {
+      setEditorReveal(null);
+    }
   };
 
   const openFileFromDialog = async () => {
@@ -121,16 +194,26 @@ export const useWorkspace = () => {
     try {
       const listing = await bridge.openFolder();
 
-      if (listing === null) {
+      if (listing === null || listing.length === 0) {
         return;
       }
 
-      setFolder(listing);
+      setFolders((current) => mergeFolders(current, listing));
+      setExpandedFolders((current) => {
+        const next = new Set(current);
+
+        for (const folder of listing) {
+          next.add(rootKey(folder.path));
+        }
+
+        return next;
+      });
       setSidebarOpen(true);
+      setSidebarView("files");
 
-      const [first] = listing.files;
+      const first = listing.flatMap((folder) => folder.files).at(0);
 
-      if (first !== undefined && !dirty) {
+      if (first !== undefined && !dirty && content === welcomeDocument) {
         loadDocument(await bridge.readFile(first.path));
       }
     } catch (error) {
@@ -146,7 +229,13 @@ export const useWorkspace = () => {
     }
 
     try {
-      setFolder(await bridge.refreshFolder(folderPath));
+      const listing = await bridge.refreshFolder(folderPath);
+
+      setFolders((current) =>
+        current.map((folder) =>
+          folder.path === listing.path ? listing : folder
+        )
+      );
     } catch (error) {
       if (error instanceof Error) {
         report("刷新文件夹失败", error);
@@ -154,18 +243,148 @@ export const useWorkspace = () => {
     }
   };
 
-  const openPathFromDisk = async (path: string) => {
-    if (!bridge || path === filePath) {
+  const refreshAllFolders = async () => {
+    if (!bridge || folders.length === 0) {
+      return;
+    }
+
+    const refreshed = await Promise.all(
+      folders.map(async (folder) => {
+        try {
+          return await bridge.refreshFolder(folder.path);
+        } catch {
+          return null;
+        }
+      })
+    );
+
+    setFolders((current) =>
+      current.map(
+        (folder) =>
+          refreshed.find((listing) => listing?.path === folder.path) ?? folder
+      )
+    );
+  };
+
+  const removeFolder = async (folderPath: string) => {
+    if (!bridge) {
       return;
     }
 
     try {
-      loadDocument(await bridge.readFile(path));
+      await bridge.closeFolder(folderPath);
+      setFolders((current) =>
+        current.filter((folder) => folder.path !== folderPath)
+      );
     } catch (error) {
+      if (error instanceof Error) {
+        report("移出文件夹失败", error);
+      }
+    }
+  };
+
+  const openPathFromDisk = async (path: string): Promise<boolean> => {
+    if (!bridge || path === filePath) {
+      return false;
+    }
+
+    try {
+      loadDocument(await bridge.readFile(path));
+
+      return true;
+    } catch (error) {
+      void refreshRecentFiles();
+
       if (error instanceof Error) {
         report("打开文件失败", error);
       }
+
+      return false;
     }
+  };
+
+  const reveal = () => {
+    revealNonce.current += 1;
+
+    return revealNonce.current;
+  };
+
+  const openLinkedDocument = async (target: ResolvedLink) => {
+    const opened = await openPathFromDisk(target.path);
+
+    if (opened && target.anchor !== null) {
+      setPreviewAnchor({ id: target.anchor, nonce: reveal() });
+    }
+  };
+
+  const openLink = async (href: string) => {
+    if (href.trim() === "") {
+      return;
+    }
+
+    if (!bridge) {
+      toast.info("文件跳转需在桌面版使用。");
+
+      return;
+    }
+
+    if (filePath === null) {
+      toast.info("请先保存当前文档，再使用相对链接。");
+
+      return;
+    }
+
+    try {
+      const target = await bridge.resolveLink({ from: filePath, href });
+
+      if (target === null) {
+        toast.info("只支持 Markdown 文件链接。");
+
+        return;
+      }
+
+      if (target.path === filePath) {
+        if (target.anchor !== null) {
+          setPreviewAnchor({ id: target.anchor, nonce: reveal() });
+        }
+
+        return;
+      }
+
+      guard(() => {
+        void openLinkedDocument(target);
+      });
+    } catch (error) {
+      if (error instanceof Error) {
+        report("打开链接失败", error);
+      }
+    }
+  };
+
+  const revealOutline = (item: OutlineItem) => {
+    const nonce = reveal();
+
+    if (mode !== "edit") {
+      setPreviewAnchor({ id: item.id, nonce });
+    }
+
+    if (mode !== "preview") {
+      setEditorReveal({ line: item.line, nonce });
+    }
+  };
+
+  const toggleFolder = (key: string) => {
+    setExpandedFolders((current) => {
+      const next = new Set(current);
+
+      if (next.has(key)) {
+        next.delete(key);
+      } else {
+        next.add(key);
+      }
+
+      return next;
+    });
   };
 
   const saveAs = async () => {
@@ -200,10 +419,8 @@ export const useWorkspace = () => {
     setFileName(saved.name);
     setSavedContent(snapshot);
     setSavedAt(Date.now());
-
-    if (folder !== null) {
-      await refreshFolderFromDisk(folder.path);
-    }
+    void refreshRecentFiles();
+    await refreshAllFolders();
   };
 
   const save = async () => {
@@ -241,6 +458,8 @@ export const useWorkspace = () => {
       setFilePath(null);
       setFileName(untitledName);
       setSavedAt(null);
+      setPreviewAnchor(null);
+      setEditorReveal(null);
     });
   };
 
@@ -267,6 +486,134 @@ export const useWorkspace = () => {
   const refreshFolder = (folderPath: string) => {
     void refreshFolderFromDisk(folderPath);
   };
+
+  const clearRecentFiles = async () => {
+    if (!bridge) {
+      return;
+    }
+
+    try {
+      await bridge.clearRecentFiles();
+      setRecentFiles([]);
+    } catch (error) {
+      if (error instanceof Error) {
+        report("清空历史失败", error);
+      }
+    }
+  };
+
+  const consumeOpenRequest = async () => {
+    if (!bridge) {
+      return;
+    }
+
+    try {
+      const request = await bridge.takeOpenRequest();
+
+      if (request !== null) {
+        guard(() => {
+          void openPathFromDisk(request.path);
+        });
+      }
+    } catch (error) {
+      if (error instanceof Error) {
+        report("打开文件失败", error);
+      }
+    }
+  };
+
+  // The operating system can ask for a file at any time; the ref keeps the
+  // listener on the latest document state without resubscribing on every edit.
+  const consumeOpenRequestRef = useRef(consumeOpenRequest);
+
+  useEffect(() => {
+    consumeOpenRequestRef.current = consumeOpenRequest;
+  });
+
+  const clearPreviewAnchor = useCallback(() => {
+    setPreviewAnchor(null);
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+
+    const loadRecentFiles = async () => {
+      if (!bridge) {
+        return;
+      }
+
+      try {
+        const files = await bridge.recentFiles();
+
+        if (active) {
+          setRecentFiles(files);
+        }
+      } catch {
+        // The recent list is a convenience; the editor works without it.
+      }
+    };
+
+    void loadRecentFiles();
+
+    return () => {
+      active = false;
+    };
+  }, [bridge]);
+
+  useEffect(() => {
+    let active = true;
+
+    const loadFolders = async () => {
+      if (!bridge) {
+        return;
+      }
+
+      try {
+        const restored = await bridge.listFolders();
+
+        if (!active) {
+          return;
+        }
+
+        setFolders(restored);
+        setExpandedFolders((current) => {
+          const next = new Set(current);
+
+          for (const folder of restored) {
+            next.add(rootKey(folder.path));
+          }
+
+          return next;
+        });
+
+        if (restored.length > 0) {
+          setSidebarView("files");
+        }
+      } catch {
+        // Persisted folders are a convenience; the app opens without them.
+      }
+    };
+
+    void loadFolders();
+
+    return () => {
+      active = false;
+    };
+  }, [bridge]);
+
+  useEffect(() => {
+    const requestOpen = () => {
+      void consumeOpenRequestRef.current();
+    };
+
+    requestOpen();
+
+    const unsubscribe = bridge?.onOpenRequest(requestOpen);
+
+    return () => {
+      unsubscribe?.();
+    };
+  }, [bridge]);
 
   // Autosave only touches a file that already exists on disk.
   useEffect(() => {
@@ -365,13 +712,19 @@ export const useWorkspace = () => {
 
   return {
     actions: {
+      clearPreviewAnchor,
+      clearRecentFiles,
       newDocument,
       openFile,
       openFolder,
+      openLink,
       openPath,
       refreshFolder,
+      removeFolder,
+      revealOutline,
       save,
       saveAs,
+      toggleFolder,
     },
     confirmation: {
       message: pendingAction?.message ?? discardMessage,
@@ -380,16 +733,23 @@ export const useWorkspace = () => {
     },
     content,
     dirty,
+    editorReveal,
+    expandedFolders,
     fileName,
     filePath,
-    folder,
+    folders,
     isDesktop: bridge !== null,
     mode,
+    outline,
+    previewAnchor,
+    recentFiles,
     savedAt,
     saving,
     setContent,
     setMode: changeMode,
     setSidebarOpen,
+    setSidebarView,
     sidebarOpen,
+    sidebarView,
   };
 };

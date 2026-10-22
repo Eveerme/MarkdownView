@@ -25,14 +25,20 @@
     "@tanstack/react-router": "catalog:",
     "@tanstack/react-router-devtools": "catalog:",
     "@uiw/react-codemirror": "catalog:",
+    "github-slugger": "catalog:",
     "lucide-react": "catalog:",
+    "mdast-util-to-string": "catalog:",
     "next-themes": "catalog:",
     "react": "catalog:",
     "react-dom": "catalog:",
     "react-markdown": "catalog:",
     "rehype-highlight": "catalog:",
+    "rehype-slug": "catalog:",
     "remark-gfm": "catalog:",
-    "sonner": "catalog:"
+    "remark-parse": "catalog:",
+    "sonner": "catalog:",
+    "unified": "catalog:",
+    "unist-util-visit": "catalog:"
   },
   "devDependencies": {
     "@markdownview/config": "workspace:*",

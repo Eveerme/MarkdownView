@@ -22,6 +22,7 @@ import {
   DropdownMenuTrigger,
 } from "@markdownview/ui/components/dropdown-menu";
 
+import { AboutDialog } from "#src/components/about-dialog.tsx";
 import { ModeToggle } from "#src/components/mode-toggle.tsx";
 import type { ViewMode } from "#src/lib/use-workspace.ts";
 
@@ -174,6 +175,7 @@ export const Toolbar = ({
         </>
       ) : null}
 
+      <AboutDialog />
       <ModeToggle />
     </div>
   </header>

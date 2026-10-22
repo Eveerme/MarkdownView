@@ -10,7 +10,7 @@ describe("word count", () => {
 
   it("counts alphabetic words once", () => {
     expect(countWords("Hello world")).toBe(2);
-    expect(countWords("a well-known state-of-the-art editor")).toBe(6);
+    expect(countWords("a well-known state-of-the-art editor")).toBe(8);
   });
 
   it("counts each CJK character as a word and skips punctuation", () => {

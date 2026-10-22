@@ -1,12 +1,18 @@
 import { contextBridge, ipcRenderer } from "electron";
+import type { IpcRendererEvent } from "electron";
 import type { ZodType } from "zod";
+import { z } from "zod";
 
 import type {
   DesktopApi,
   DesktopVersions,
   MarkdownDocument,
   MarkdownFolder,
+  MarkdownOpenRequest,
   MarkdownSavedFile,
+  RecentFile,
+  ResolvedLink,
+  ResolveLinkRequest,
   SaveFileAsRequest,
   SaveFileRequest,
 } from "@markdownview/electron";
@@ -15,11 +21,19 @@ import {
   desktopChannels,
   markdownDocumentSchema,
   markdownFolderSchema,
+  markdownOpenRequestSchema,
   markdownSavedFileSchema,
+  recentFileSchema,
+  resolvedLinkSchema,
+  resolveLinkRequestSchema,
   versionsSchema,
 } from "@markdownview/electron";
 
-type InvokePayload = string | SaveFileRequest | SaveFileAsRequest;
+type InvokePayload =
+  | string
+  | SaveFileRequest
+  | SaveFileAsRequest
+  | ResolveLinkRequest;
 
 const invoke = async <T>(
   channel: string,
@@ -47,13 +61,52 @@ const desktop = {
     return document;
   },
 
-  openFolder: async (): Promise<MarkdownFolder | null> => {
-    const folder = await invoke(
-      desktopChannels.openFolder,
-      markdownFolderSchema.nullable()
+  takeOpenRequest: async (): Promise<MarkdownOpenRequest | null> => {
+    const request = await invoke(
+      desktopChannels.takeOpenRequest,
+      markdownOpenRequestSchema.nullable()
     );
 
-    return folder;
+    return request;
+  },
+
+  onOpenRequest: (
+    listener: (request: MarkdownOpenRequest) => void
+  ): (() => void) => {
+    const handler = (
+      _event: IpcRendererEvent,
+      payload: MarkdownOpenRequest
+    ) => {
+      listener(markdownOpenRequestSchema.parse(payload));
+    };
+
+    ipcRenderer.on(desktopChannels.openRequest, handler);
+
+    return () => {
+      ipcRenderer.removeListener(desktopChannels.openRequest, handler);
+    };
+  },
+
+  openFolder: async (): Promise<MarkdownFolder[] | null> => {
+    const folders = await invoke(
+      desktopChannels.openFolder,
+      z.array(markdownFolderSchema).nullable()
+    );
+
+    return folders;
+  },
+
+  listFolders: async (): Promise<MarkdownFolder[]> => {
+    const folders = await invoke(
+      desktopChannels.listFolders,
+      z.array(markdownFolderSchema)
+    );
+
+    return folders;
+  },
+
+  closeFolder: async (path: string): Promise<void> => {
+    await invoke(desktopChannels.closeFolder, z.null(), path);
   },
 
   refreshFolder: async (path: string): Promise<MarkdownFolder> => {
@@ -76,6 +129,18 @@ const desktop = {
     return document;
   },
 
+  resolveLink: async (
+    request: ResolveLinkRequest
+  ): Promise<ResolvedLink | null> => {
+    const target = await invoke(
+      desktopChannels.resolveLink,
+      resolvedLinkSchema.nullable(),
+      resolveLinkRequestSchema.parse(request)
+    );
+
+    return target;
+  },
+
   saveFile: async (request: SaveFileRequest): Promise<MarkdownSavedFile> => {
     const saved = await invoke(
       desktopChannels.saveFile,
@@ -96,6 +161,19 @@ const desktop = {
     );
 
     return saved;
+  },
+
+  recentFiles: async (): Promise<RecentFile[]> => {
+    const files = await invoke(
+      desktopChannels.recentFiles,
+      z.array(recentFileSchema)
+    );
+
+    return files;
+  },
+
+  clearRecentFiles: async (): Promise<void> => {
+    await invoke(desktopChannels.clearRecentFiles, z.null());
   },
 } satisfies DesktopApi;
 

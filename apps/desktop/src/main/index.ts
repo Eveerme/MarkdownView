@@ -5,7 +5,9 @@ import { app, BrowserWindow } from "electron";
 import { rendererOrigin } from "@markdownview/electron";
 
 import { defaultApiOrigin } from "#src/main/config.ts";
+import { isMarkdownPath } from "#src/main/files.ts";
 import { setupIpc } from "#src/main/ipc.ts";
+import { findMarkdownPath } from "#src/main/launch.ts";
 import {
   parseHttpOrigin,
   parseLoopbackOrigin,
@@ -45,8 +47,24 @@ const open = () =>
     url: devOrigin ?? `${rendererOrigin}/`,
   });
 
+let requestOpen: ((filePath: string) => void) | null = null;
+const queuedOpenPaths: string[] = [];
+
+/** A file path arrives from argv, a second instance, or macOS open-file. */
+const openFromShell = (filePath: string) => {
+  if (requestOpen === null) {
+    queuedOpenPaths.push(filePath);
+
+    return;
+  }
+
+  requestOpen(filePath);
+};
+
 const start = () => {
-  setupIpc(devOrigin);
+  const ipc = setupIpc(devOrigin);
+
+  ({ requestOpen } = ipc);
 
   if (devOrigin === null) {
     serveRenderer({
@@ -56,7 +74,25 @@ const start = () => {
   }
 
   open();
+
+  for (const filePath of queuedOpenPaths.splice(0)) {
+    ipc.requestOpen(filePath);
+  }
+
+  const launchedFile = findMarkdownPath(process.argv.slice(1), process.cwd());
+
+  if (launchedFile !== null) {
+    ipc.requestOpen(launchedFile);
+  }
 };
+
+app.on("open-file", (event, filePath) => {
+  event.preventDefault();
+
+  if (isMarkdownPath(filePath)) {
+    openFromShell(filePath);
+  }
+});
 
 if (app.requestSingleInstanceLock()) {
   // No top-level `await`: Electron starts the app only after the main module finishes evaluating.
@@ -66,9 +102,27 @@ if (app.requestSingleInstanceLock()) {
       open();
     }
   });
-  app.on("second-instance", () => {
+  app.on("second-instance", (_event, argv, workingDirectory) => {
+    const filePath = findMarkdownPath(argv.slice(1), workingDirectory);
+
+    if (filePath !== null) {
+      openFromShell(filePath);
+    }
+
     const [win] = BrowserWindow.getAllWindows();
-    win?.focus();
+
+    if (win === undefined) {
+      // `start` opens the window and drains the queued path once the app is ready.
+      if (app.isReady()) {
+        open();
+      }
+    } else {
+      if (win.isMinimized()) {
+        win.restore();
+      }
+
+      win.focus();
+    }
   });
   app.on("window-all-closed", () => {
     if (process.platform !== "darwin") {

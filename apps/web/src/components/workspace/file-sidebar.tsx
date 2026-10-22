@@ -1,32 +1,49 @@
 import {
-  FileTextIcon,
+  ClockIcon,
   FolderPlusIcon,
   FolderTreeIcon,
-  RefreshCwIcon,
+  ListTreeIcon,
 } from "lucide-react";
 import type { ReactNode } from "react";
 
-import type { MarkdownFolder } from "@markdownview/electron";
+import type { MarkdownFolder, RecentFile } from "@markdownview/electron";
 import { Button } from "@markdownview/ui/components/button";
+
+import { FileTree } from "#src/components/workspace/file-tree.tsx";
+import { OutlineList } from "#src/components/workspace/outline-list.tsx";
+import { RecentList } from "#src/components/workspace/recent-list.tsx";
+import type { OutlineItem } from "#src/lib/outline.ts";
+import type { SidebarView } from "#src/lib/use-workspace.ts";
 
 interface FileSidebarProps {
   activePath: string | null;
-  folder: MarkdownFolder | null;
+  expanded: ReadonlySet<string>;
+  folders: MarkdownFolder[];
+  outline: OutlineItem[];
+  recentFiles: RecentFile[];
+  view: SidebarView;
+  onClearRecent: () => void;
   onOpen: (path: string) => void;
+  onOpenFile: () => void;
   onOpenFolder: () => void;
-  onRefresh: () => void;
+  onRefresh: (folderPath: string) => void;
+  onRemove: (folderPath: string) => void;
+  onReveal: (item: OutlineItem) => void;
+  onToggleFolder: (key: string) => void;
+  onViewChange: (view: SidebarView) => void;
 }
 
-const directoryOf = (relativePath: string) => {
-  const index = relativePath.lastIndexOf("/");
-
-  return index === -1 ? null : relativePath.slice(0, index);
-};
+const viewButton = (active: boolean) =>
+  `flex h-6 items-center gap-1 rounded-md px-1.5 text-xs transition-colors ${
+    active
+      ? "bg-background text-foreground shadow-sm"
+      : "text-muted-foreground hover:text-foreground"
+  }`;
 
 const emptyLibrary = (onOpenFolder: () => void) => (
   <div className="px-4 py-5">
     <p className="text-muted-foreground text-xs leading-relaxed">
-      打开一个文件夹，所有 Markdown 笔记都会列在这里。
+      打开一个文件夹，所有 Markdown 笔记都会列在这里。可以同时打开多个文件夹。
     </p>
     <Button
       className="mt-3 w-full"
@@ -42,92 +59,103 @@ const emptyLibrary = (onOpenFolder: () => void) => (
 
 export const FileSidebar = ({
   activePath,
-  folder,
+  expanded,
+  folders,
+  outline,
+  recentFiles,
+  view,
+  onClearRecent,
   onOpen,
+  onOpenFile,
   onOpenFolder,
   onRefresh,
+  onRemove,
+  onReveal,
+  onToggleFolder,
+  onViewChange,
 }: FileSidebarProps) => {
   let body: ReactNode;
 
-  if (folder === null) {
-    body = emptyLibrary(onOpenFolder);
-  } else if (folder.files.length === 0) {
+  if (view === "recent") {
     body = (
-      <p className="text-muted-foreground px-4 py-5 text-xs leading-relaxed">
-        这个文件夹里还没有 Markdown 文件。
-      </p>
+      <RecentList
+        activePath={activePath}
+        files={recentFiles}
+        onClear={onClearRecent}
+        onOpen={onOpen}
+        onOpenFile={onOpenFile}
+      />
     );
+  } else if (view === "outline") {
+    body = <OutlineList items={outline} onReveal={onReveal} />;
+  } else if (folders.length === 0) {
+    body = emptyLibrary(onOpenFolder);
   } else {
     body = (
-      <nav className="min-h-0 flex-1 overflow-y-auto px-2 pb-4">
-        <ul className="space-y-0.5">
-          {folder.files.map((file) => {
-            const directory = directoryOf(file.relativePath);
-            const active = file.path === activePath;
-
-            return (
-              <li key={file.path}>
-                <button
-                  className={`group flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-xs transition-colors ${
-                    active
-                      ? "bg-sidebar-accent text-sidebar-accent-foreground"
-                      : "text-muted-foreground hover:bg-sidebar-accent/60 hover:text-sidebar-foreground"
-                  }`}
-                  onClick={() => {
-                    onOpen(file.path);
-                  }}
-                  title={file.relativePath}
-                  type="button"
-                >
-                  <FileTextIcon
-                    className={`size-3.5 shrink-0 ${
-                      active ? "text-primary" : "opacity-50"
-                    }`}
-                  />
-                  <span className="truncate">{file.name}</span>
-                  {directory === null ? null : (
-                    <span className="ml-auto max-w-[45%] truncate text-xs opacity-60">
-                      {directory}
-                    </span>
-                  )}
-                </button>
-              </li>
-            );
-          })}
-        </ul>
-      </nav>
+      <FileTree
+        activePath={activePath}
+        expanded={expanded}
+        folders={folders}
+        onOpen={onOpen}
+        onRefresh={onRefresh}
+        onRemove={onRemove}
+        onToggle={onToggleFolder}
+      />
     );
   }
 
   return (
     <aside className="bg-sidebar flex w-60 shrink-0 flex-col border-r">
-      <div className="flex h-10 items-center gap-1.5 px-3">
-        <FolderTreeIcon className="text-muted-foreground size-3.5" />
-        <span className="text-muted-foreground truncate text-xs font-semibold tracking-wide">
-          {folder?.name ?? "笔记库"}
-        </span>
-        <div className="ml-auto flex items-center gap-0.5">
-          {folder === null ? null : (
-            <Button
-              aria-label="刷新文件列表"
-              onClick={onRefresh}
-              size="icon-xs"
-              title="刷新"
-              variant="ghost"
-            >
-              <RefreshCwIcon />
-            </Button>
-          )}
-          <Button
-            aria-label="打开文件夹"
-            onClick={onOpenFolder}
-            size="icon-xs"
-            title="打开文件夹"
-            variant="ghost"
+      <div className="flex h-10 items-center gap-1 px-2">
+        <div className="bg-muted/80 flex items-center gap-0 rounded-lg p-0.5">
+          <button
+            aria-pressed={view === "recent"}
+            className={viewButton(view === "recent")}
+            onClick={() => {
+              onViewChange("recent");
+            }}
+            title="最近打开"
+            type="button"
           >
-            <FolderPlusIcon />
-          </Button>
+            <ClockIcon className="size-3" />
+            最近
+          </button>
+          <button
+            aria-pressed={view === "files"}
+            className={viewButton(view === "files")}
+            onClick={() => {
+              onViewChange("files");
+            }}
+            title="文件树"
+            type="button"
+          >
+            <FolderTreeIcon className="size-3" />
+            文件
+          </button>
+          <button
+            aria-pressed={view === "outline"}
+            className={viewButton(view === "outline")}
+            onClick={() => {
+              onViewChange("outline");
+            }}
+            title="目录大纲"
+            type="button"
+          >
+            <ListTreeIcon className="size-3" />
+            大纲
+          </button>
         </div>
+
+        <Button
+          aria-label="打开文件夹"
+          className="ml-auto"
+          onClick={onOpenFolder}
+          size="icon-xs"
+          title="打开文件夹"
+          variant="ghost"
+        >
+          <FolderPlusIcon />
+        </Button>
       </div>
 
       {body}

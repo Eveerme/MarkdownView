@@ -8,6 +8,14 @@ files:
   - dist/main/**/*
   - dist/preload/**/*
   - dist/renderer/**/*
+fileAssociations:
+  - ext:
+      - md
+      - markdown
+    name: MarkdownView.Document
+    description: Markdown 文档
+    mimeType: text/markdown
+    role: Editor
 nsis:
   oneClick: false
   allowToChangeInstallationDirectory: true

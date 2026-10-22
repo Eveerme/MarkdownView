@@ -12,19 +12,30 @@ const markdownExtensions = new Set([".md", ".markdown"]);
 // Generated or tool-owned folders that never hold the user's notes.
 const ignoredDirectories = new Set(["node_modules", "dist", "release"]);
 
-const maxDepth = 8;
-const maxFiles = 1000;
+const maxDepth = 16;
+const maxFiles = 5000;
 
 export const isMarkdownPath = (filePath: string) =>
   markdownExtensions.has(path.extname(filePath).toLowerCase());
+
+interface WalkState {
+  files: MarkdownFile[];
+  truncated: boolean;
+}
 
 const walk = async (
   root: string,
   directory: string,
   depth: number,
-  files: MarkdownFile[]
+  state: WalkState
 ) => {
-  if (depth > maxDepth || files.length >= maxFiles) {
+  if (depth > maxDepth) {
+    state.truncated = true;
+
+    return;
+  }
+
+  if (state.truncated) {
     return;
   }
 
@@ -47,7 +58,13 @@ const walk = async (
     }
 
     if (entry.isFile() && isMarkdownPath(entry.name)) {
-      files.push({
+      if (state.files.length >= maxFiles) {
+        state.truncated = true;
+
+        return;
+      }
+
+      state.files.push({
         name: entry.name,
         path: absolute,
         relativePath: path.relative(root, absolute).split(path.sep).join("/"),
@@ -58,22 +75,30 @@ const walk = async (
   const pending: Promise<void>[] = [];
 
   for (const subdirectory of subdirectories) {
-    pending.push(walk(root, subdirectory, depth + 1, files));
+    pending.push(walk(root, subdirectory, depth + 1, state));
   }
 
   await Promise.all(pending);
 };
 
+export interface MarkdownListing {
+  files: MarkdownFile[];
+  truncated: boolean;
+}
+
 export const listMarkdownFiles = async (
   root: string
-): Promise<MarkdownFile[]> => {
-  const files: MarkdownFile[] = [];
+): Promise<MarkdownListing> => {
+  const state: WalkState = { files: [], truncated: false };
 
-  await walk(root, root, 0, files);
+  await walk(root, root, 0, state);
 
-  return files.toSorted((left, right) =>
-    left.relativePath < right.relativePath ? -1 : 1
-  );
+  return {
+    files: state.files.toSorted((left, right) =>
+      left.relativePath < right.relativePath ? -1 : 1
+    ),
+    truncated: state.truncated,
+  };
 };
 
 export const readMarkdownDocument = async (
