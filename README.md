@@ -4,7 +4,7 @@
 
 **下载安装包**：[GitHub Releases](https://github.com/Eveerme/MarkdownView/releases/latest) · Windows 10/11 x64
 
-![MarkdownView 界面](docs/screenshot.png)
+![MarkdownView 界面：左侧多文件夹文件树，中间 Markdown 源码，右侧实时预览](docs/screenshot.png)
 
 ## 功能特性
 
