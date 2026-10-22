@@ -16,6 +16,7 @@ import type { OutlineItem } from "#src/lib/outline.ts";
 import type { SidebarView } from "#src/lib/use-workspace.ts";
 
 interface FileSidebarProps {
+  activeOutlineId: string | null;
   activePath: string | null;
   expanded: ReadonlySet<string>;
   folders: MarkdownFolder[];
@@ -58,6 +59,7 @@ const emptyLibrary = (onOpenFolder: () => void) => (
 );
 
 export const FileSidebar = ({
+  activeOutlineId,
   activePath,
   expanded,
   folders,
@@ -87,7 +89,13 @@ export const FileSidebar = ({
       />
     );
   } else if (view === "outline") {
-    body = <OutlineList items={outline} onReveal={onReveal} />;
+    body = (
+      <OutlineList
+        activeId={activeOutlineId}
+        items={outline}
+        onReveal={onReveal}
+      />
+    );
   } else if (folders.length === 0) {
     body = emptyLibrary(onOpenFolder);
   } else {

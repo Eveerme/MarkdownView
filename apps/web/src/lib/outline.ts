@@ -36,3 +36,24 @@ export const buildOutline = (markdown: string): OutlineItem[] => {
 
   return items;
 };
+
+/**
+ * The section a reader is inside at the given source line: the last heading
+ * that starts at or above it. An empty outline has no active section.
+ */
+export const activeOutlineId = (
+  items: readonly OutlineItem[],
+  line: number
+): string | null => {
+  let active: string | null = null;
+
+  for (const item of items) {
+    if (item.line > line) {
+      break;
+    }
+
+    active = item.id;
+  }
+
+  return active ?? items[0]?.id ?? null;
+};

@@ -1,10 +1,12 @@
 import { FeatherIcon } from "lucide-react";
 import {
   createContext,
+  memo,
   useCallback,
   useContext,
   useEffect,
   useRef,
+  useState,
 } from "react";
 import type { ComponentProps } from "react";
 import Markdown from "react-markdown";
@@ -14,6 +16,7 @@ import rehypeRaw from "rehype-raw";
 import rehypeSlug from "rehype-slug";
 import remarkGfm from "remark-gfm";
 
+import { ImageLightbox } from "#src/components/workspace/image-lightbox.tsx";
 import { assetUrl } from "#src/lib/asset-url.ts";
 import { rehypeHtmlBlocks } from "#src/lib/html-blocks.ts";
 import { rehypeSourceLines } from "#src/lib/source-lines.ts";
@@ -75,11 +78,13 @@ const MarkdownLink = ({ children, href }: ComponentProps<"a">) => {
 const MarkdownImage = ({ alt, src, ...rest }: ComponentProps<"img">) => {
   const resolveAsset = useContext(AssetUrlContext);
 
+  // Eager on purpose: note images come from the local disk, and loading them
+  // before a heading jump keeps the heading from moving once it is in view.
   return (
     <img
       {...rest}
       alt={alt ?? ""}
-      loading="lazy"
+      decoding="async"
       src={resolveAsset(src) ?? src}
     />
   );
@@ -100,7 +105,7 @@ const components: Components = {
   video: MarkdownVideo,
 };
 
-export const PreviewPane = ({
+const PreviewPaneView = ({
   content,
   filePath,
   onOpenLink,
@@ -113,6 +118,10 @@ export const PreviewPane = ({
   const linkHandler = useRef(onOpenLink);
   const scrollHandled = useRef(onScrollHandled);
   const selectLine = useRef(onSelectLine);
+
+  const [viewing, setViewing] = useState<{ alt: string; src: string } | null>(
+    null
+  );
 
   const attachContainer = useCallback(
     (element: HTMLDivElement | null) => {
@@ -144,8 +153,8 @@ export const PreviewPane = ({
   }, []);
 
   // A plain click on a rendered block puts the source cursor on its line, so
-  // the preview can drive the editing side of a split view. The listener is
-  // delegated: the preview stays a reading surface, not a control.
+  // the preview can drive the editing side of a split view. An image is the
+  // exception: it opens at full size instead of moving the caret.
   useEffect(() => {
     const element = container.current;
 
@@ -154,9 +163,25 @@ export const PreviewPane = ({
 
       if (
         !(target instanceof Element) ||
-        target.closest("a, button, input, label, summary") !== null ||
         (window.getSelection()?.toString() ?? "") !== ""
       ) {
+        return;
+      }
+
+      const image = target.closest("img");
+
+      if (image instanceof HTMLImageElement && image.closest("a") === null) {
+        event.preventDefault();
+
+        setViewing({
+          alt: image.alt,
+          src: image.currentSrc === "" ? image.src : image.currentSrc,
+        });
+
+        return;
+      }
+
+      if (target.closest("a, button, input, label, summary") !== null) {
         return;
       }
 
@@ -182,12 +207,31 @@ export const PreviewPane = ({
       return;
     }
 
-    const target = container.current?.querySelector(
-      `#${CSS.escape(scrollTarget.id)}`
-    );
+    const element = container.current;
+
+    if (element === null) {
+      scrollHandled.current?.();
+
+      return;
+    }
+
+    const target = element.querySelector(`#${CSS.escape(scrollTarget.id)}`);
 
     if (target instanceof HTMLElement) {
-      target.scrollIntoView({ block: "start" });
+      // Scrolling the heading into view by hand keeps the movement inside the
+      // preview: scrollIntoView also scrolls the window, which would push the
+      // app frame up and leave a gap below it.
+      const margin =
+        // oxlint-disable-next-line unicorn/prefer-number-coercion
+        Number.parseFloat(getComputedStyle(target).scrollMarginTop) || 0;
+
+      const top =
+        target.getBoundingClientRect().top -
+        element.getBoundingClientRect().top +
+        element.scrollTop -
+        margin;
+
+      element.scrollTo({ top: Math.max(0, top) });
     }
 
     scrollHandled.current?.();
@@ -225,7 +269,20 @@ export const PreviewPane = ({
             </article>
           )}
         </div>
+
+        {viewing === null ? null : (
+          <ImageLightbox
+            alt={viewing.alt}
+            onClose={() => {
+              setViewing(null);
+            }}
+            src={viewing.src}
+          />
+        )}
       </AssetUrlContext.Provider>
     </LinkHandlerContext.Provider>
   );
 };
+
+/** Memoized: a cursor move in the source pane must not re-parse the document. */
+export const PreviewPane = memo(PreviewPaneView);

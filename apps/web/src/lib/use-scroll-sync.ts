@@ -25,17 +25,13 @@ const maxScrollOf = (element: Element) =>
   Math.max(0, element.scrollHeight - element.clientHeight);
 
 const readAnchors = (preview: HTMLElement): ScrollAnchor[] => {
-  const origin = preview.getBoundingClientRect().top - preview.scrollTop;
   const anchors: ScrollAnchor[] = [];
 
   for (const element of preview.querySelectorAll<HTMLElement>("[data-line]")) {
     const line = Number(element.dataset.line);
 
     if (Number.isFinite(line)) {
-      anchors.push({
-        line,
-        top: element.getBoundingClientRect().top - origin,
-      });
+      anchors.push({ line, top: element.offsetTop });
     }
   }
 

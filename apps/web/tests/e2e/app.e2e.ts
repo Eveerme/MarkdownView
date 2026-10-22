@@ -5,6 +5,46 @@ const visit = async (page: Page, path: string) => {
   await page.goto(path, { waitUntil: "networkidle" });
 };
 
+/**
+ * The sidebar only exists in the desktop app, whose Electron main process is
+ * not part of this run. These answers stand in for the IPC bridge so the
+ * desktop-only panels can be exercised in Chromium. They return plain values
+ * on purpose: the renderer awaits them either way.
+ */
+const stubDesktopBridge = () => {
+  Object.defineProperty(window, "desktop", {
+    configurable: true,
+    value: {
+      versions: () => ({ chrome: "1", electron: "1", node: "1" }),
+      openFile: () => null,
+      takeOpenRequest: () => null,
+      onOpenRequest: () => () => {
+        // Nothing subscribes to open requests in this test.
+      },
+      openFolder: () => null,
+      listFolders: () => [],
+      closeFolder: () => {
+        // No folder is open in this test.
+      },
+      refreshFolder: () => {
+        throw new Error("no folder is open");
+      },
+      readFile: () => {
+        throw new Error("no file is open");
+      },
+      resolveLink: () => null,
+      saveFile: () => ({ name: "note.md", path: "note.md" }),
+      saveFileAs: () => null,
+      recentFiles: () => [],
+      clearRecentFiles: () => {
+        // The recent list starts empty.
+      },
+      saveImage: () => ({ relativePath: "image.png" }),
+      exportDocument: () => null,
+    },
+  });
+};
+
 test("opens with a sample document beside its source", async ({ page }) => {
   await visit(page, "/");
 
@@ -352,4 +392,125 @@ test("double-clicking the divider resets the split", async ({ page }) => {
   await page.getByRole("button", { name: "调整分栏宽度" }).dblclick();
 
   await expect.poll(splitRatio).toBe("50%");
+});
+
+test("jumping to a heading scrolls the preview, not the window", async ({
+  page,
+}) => {
+  await visit(page, "/");
+
+  await page.locator(".cm-content").click();
+  await page.keyboard.press("Control+A");
+  await page.keyboard.insertText(
+    [
+      "# 开头",
+      "",
+      "[跳到第二节](#第二节)",
+      "",
+      ...Array.from({ length: 60 }, () => "占位段落。"),
+      "",
+      "## 第二节",
+      "",
+      "目标内容。",
+    ].join("\n\n")
+  );
+
+  await page.getByRole("link", { name: "跳到第二节" }).click();
+  await expect(page.locator("#第二节")).toBeInViewport();
+
+  const frame = await page.evaluate(() => ({
+    headerTop: document.querySelector("header")?.getBoundingClientRect().top,
+    windowScroll: document.documentElement.scrollTop,
+  }));
+
+  // Scrolling the window would hide the toolbar and leave a gap at the bottom.
+  expect(frame.windowScroll).toBe(0);
+  expect(frame.headerTop).toBe(0);
+});
+
+test("clicking a preview image opens it at full size", async ({ page }) => {
+  await visit(page, "/");
+
+  await page.locator(".cm-content").click();
+  await page.keyboard.press("Control+A");
+  await page.keyboard.insertText(
+    '<img src="https://example.com/demo.png" alt="示例图" width="200" height="120" />'
+  );
+
+  await page.locator(".markdown-body img").click();
+
+  const lightbox = page.getByRole("dialog");
+
+  await expect(lightbox).toBeVisible();
+  await expect(lightbox.locator("img")).toHaveAttribute(
+    "src",
+    "https://example.com/demo.png"
+  );
+
+  await page.keyboard.press("Escape");
+  await expect(lightbox).toBeHidden();
+});
+
+test("the selected text shows its count beside the selection", async ({
+  page,
+}) => {
+  await visit(page, "/");
+
+  const badge = page.locator("[data-selection-count]");
+
+  await expect(badge).toBeHidden();
+
+  await page.locator(".cm-content").click();
+  await page.keyboard.press("Control+A");
+
+  await expect(badge).toBeVisible();
+  await expect(badge).toHaveText(/^\d+ 字$/u);
+
+  await page.locator(".markdown-body p").first().selectText();
+
+  await expect(badge).toBeVisible();
+  await expect(badge).toHaveText(/^\d+ 字$/u);
+
+  await page.locator(".cm-content").click();
+
+  await expect(badge).toBeHidden();
+});
+
+test("the outline follows the section being read", async ({ page }) => {
+  await page.addInitScript(stubDesktopBridge);
+  await visit(page, "/");
+
+  await page.locator(".cm-content").click();
+  await page.keyboard.press("Control+A");
+  await page.keyboard.insertText(
+    Array.from(
+      { length: 40 },
+      (_, index) => `## 第 ${index} 节\n\n${"正文。".repeat(30)}`
+    ).join("\n\n")
+  );
+
+  await page.getByRole("button", { name: "大纲" }).click();
+
+  const current = page.locator('aside nav [aria-current="location"]');
+
+  await page.locator(".preview-scroll").evaluate((element) => {
+    element.scrollTop = 0;
+  });
+  await expect(current).toHaveText("第 0 节");
+
+  await page.locator(".preview-scroll").evaluate((element) => {
+    const heading = element.querySelector("#第-30-节");
+
+    if (heading instanceof HTMLElement) {
+      element.scrollTop = heading.offsetTop;
+    }
+  });
+
+  await expect(current).toHaveText("第 30 节");
+  await expect
+    .poll(
+      async () =>
+        await page.locator("aside nav").evaluate((element) => element.scrollTop)
+    )
+    .toBeGreaterThan(0);
 });

@@ -7,6 +7,7 @@ import type { ReactCodeMirrorRef } from "@uiw/react-codemirror";
 import { useEffect, useMemo, useRef } from "react";
 import type { ClipboardEvent, DragEvent } from "react";
 
+import { publishCursor } from "#src/lib/editor-cursor.ts";
 import { countWords } from "#src/lib/markdown-stats.ts";
 
 const markdownHighlight = HighlightStyle.define([
@@ -32,15 +33,28 @@ const extensions = [
   markdown(),
   EditorView.contentAttributes.of({ "aria-label": "Markdown 源码" }),
   syntaxHighlighting(markdownHighlight),
+  // The caret lives in a store, so moving it repaints the footer, not the app.
+  EditorView.updateListener.of((update) => {
+    if (!(update.selectionSet || update.docChanged)) {
+      return;
+    }
+
+    const selection = update.state.selection.main;
+    const line = update.state.doc.lineAt(selection.head);
+
+    const selected = selection.empty
+      ? 0
+      : countWords(update.state.sliceDoc(selection.from, selection.to));
+
+    publishCursor({
+      column: selection.head - line.from + 1,
+      line: line.number,
+      selectedWords: selected,
+    });
+  }),
 ];
 
 type ImageHandler = (file: File) => Promise<string | null>;
-
-export interface EditorCursor {
-  column: number;
-  line: number;
-  selectedWords: number;
-}
 
 const imageFrom = (data: DataTransfer | null): File | null => {
   if (data === null) {
@@ -79,7 +93,6 @@ interface EditorReveal {
 interface EditorPaneProps {
   lineNumbers: boolean;
   onChange: (value: string) => void;
-  onCursorChange?: (cursor: EditorCursor) => void;
   onImagePaste?: ImageHandler;
   onViewChange?: (view: EditorView | null) => void;
   reveal: EditorReveal | null;
@@ -90,7 +103,6 @@ interface EditorPaneProps {
 export const EditorPane = ({
   lineNumbers: showLineNumbers,
   onChange,
-  onCursorChange,
   onImagePaste,
   onViewChange,
   reveal,
@@ -106,37 +118,13 @@ export const EditorPane = ({
     [onViewChange]
   );
 
-  const cursorListener = useMemo(
-    () =>
-      EditorView.updateListener.of((update) => {
-        if (!(update.selectionSet || update.docChanged)) {
-          return;
-        }
-
-        const selection = update.state.selection.main;
-        const line = update.state.doc.lineAt(selection.head);
-
-        const selected = selection.empty
-          ? 0
-          : countWords(update.state.sliceDoc(selection.from, selection.to));
-
-        onCursorChange?.({
-          column: selection.head - line.from + 1,
-          line: line.number,
-          selectedWords: selected,
-        });
-      }),
-    [onCursorChange]
-  );
-
   const editorExtensions = useMemo(
     () => [
       ...extensions,
       ...(wordWrap ? [EditorView.lineWrapping] : []),
       ...(showLineNumbers ? [lineNumbers()] : []),
-      cursorListener,
     ],
-    [cursorListener, showLineNumbers, wordWrap]
+    [showLineNumbers, wordWrap]
   );
 
   const pasteImage = (event: ClipboardEvent<HTMLDivElement>) => {

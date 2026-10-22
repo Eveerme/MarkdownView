@@ -1,6 +1,6 @@
-import { useMemo } from "react";
+import { useDeferredValue, useMemo } from "react";
 
-import type { EditorCursor } from "#src/components/workspace/editor-pane.tsx";
+import { useEditorCursor } from "#src/lib/editor-cursor.ts";
 import { countLines, countWords } from "#src/lib/markdown-stats.ts";
 
 const timeFormat = new Intl.DateTimeFormat("zh-CN", {
@@ -10,7 +10,6 @@ const timeFormat = new Intl.DateTimeFormat("zh-CN", {
 
 interface StatusBarProps {
   content: string;
-  cursor: EditorCursor;
   dirty: boolean;
   fileName: string;
   filePath: string | null;
@@ -50,7 +49,6 @@ const saveState = ({
 
 export const StatusBar = ({
   content,
-  cursor,
   dirty,
   fileName,
   filePath,
@@ -58,9 +56,13 @@ export const StatusBar = ({
   savedAt,
   saving,
 }: StatusBarProps) => {
-  const words = useMemo(() => countWords(content), [content]);
-  const characters = content.length;
-  const lines = useMemo(() => countLines(content), [content]);
+  const cursor = useEditorCursor();
+  // The counts trail the text: a keystroke must not wait for a scan of the
+  // whole document.
+  const counted = useDeferredValue(content);
+  const words = useMemo(() => countWords(counted), [counted]);
+  const characters = counted.length;
+  const lines = useMemo(() => countLines(counted), [counted]);
 
   return (
     <footer className="text-muted-foreground flex h-7 shrink-0 items-center gap-3 border-t px-3 text-xs">

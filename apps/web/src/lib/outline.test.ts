@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vite-plus/test";
 
-import { buildOutline } from "#src/lib/outline.ts";
+import { activeOutlineId, buildOutline } from "#src/lib/outline.ts";
 
 describe("the document outline", () => {
   it("lists headings with stable anchors and source lines", () => {
@@ -40,5 +40,29 @@ describe("the document outline", () => {
     expect(buildOutline("## 产品：定位\n\n#\n")).toStrictEqual([
       { depth: 2, id: "产品定位", line: 1, text: "产品：定位" },
     ]);
+  });
+});
+
+describe("the outline position", () => {
+  const items = [
+    { depth: 1, id: "开头", line: 1, text: "开头" },
+    { depth: 2, id: "细节", line: 12, text: "细节" },
+    { depth: 2, id: "结尾", line: 40, text: "结尾" },
+  ];
+
+  it("marks the heading whose section holds the line", () => {
+    expect(activeOutlineId(items, 1)).toBe("开头");
+    expect(activeOutlineId(items, 11)).toBe("开头");
+    expect(activeOutlineId(items, 12)).toBe("细节");
+    expect(activeOutlineId(items, 39)).toBe("细节");
+    expect(activeOutlineId(items, 999)).toBe("结尾");
+  });
+
+  it("treats a position above the first heading as its section", () => {
+    expect(activeOutlineId(items, 0)).toBe("开头");
+  });
+
+  it("has no position without headings", () => {
+    expect(activeOutlineId([], 5)).toBeNull();
   });
 });

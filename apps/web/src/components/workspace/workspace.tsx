@@ -1,14 +1,21 @@
 import type { EditorView } from "@codemirror/view";
-import { useEffect, useRef, useState } from "react";
+import {
+  useCallback,
+  useDeferredValue,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import type { CSSProperties, PointerEvent as ReactPointerEvent } from "react";
 
 import { ConfirmDialog } from "#src/components/workspace/confirm-dialog.tsx";
 import { EditorPane } from "#src/components/workspace/editor-pane.tsx";
-import type { EditorCursor } from "#src/components/workspace/editor-pane.tsx";
 import { FileSidebar } from "#src/components/workspace/file-sidebar.tsx";
 import { PreviewPane } from "#src/components/workspace/preview-pane.tsx";
+import { SelectionCount } from "#src/components/workspace/selection-count.tsx";
 import { StatusBar } from "#src/components/workspace/status-bar.tsx";
 import { Toolbar } from "#src/components/workspace/toolbar.tsx";
+import { useActiveOutline } from "#src/lib/use-active-outline.ts";
 import { useScrollSync } from "#src/lib/use-scroll-sync.ts";
 import { useSettings } from "#src/lib/use-settings.tsx";
 import { useWorkspace } from "#src/lib/use-workspace.ts";
@@ -33,21 +40,44 @@ export const Workspace = () => {
     null
   );
 
-  const [cursor, setCursor] = useState<EditorCursor>({
-    column: 1,
-    line: 1,
-    selectedWords: 0,
-  });
-
   const panes = useRef<HTMLDivElement>(null);
   const ratioRef = useRef(settings.splitRatio);
+
+  // Typing must not wait for the preview to re-parse the whole document.
+  const previewContent = useDeferredValue(workspace.content);
+
+  const actions = useRef(workspace.actions);
+
+  useEffect(() => {
+    actions.current = workspace.actions;
+  });
+
+  // The preview is memoized, so its handlers keep one identity for its lifetime.
+  const openLink = useCallback((href: string) => {
+    void actions.current.openLink(href);
+  }, []);
+
+  const clearPreviewAnchor = useCallback(() => {
+    actions.current.clearPreviewAnchor();
+  }, []);
+
+  const focusLine = useCallback((line: number) => {
+    actions.current.focusLine(line);
+  }, []);
 
   const split = workspace.mode === "split";
 
   useScrollSync({
-    content: workspace.content,
+    content: previewContent,
     editorView,
     enabled: split && settings.syncScroll,
+    preview: previewElement,
+  });
+
+  const activeOutlineId = useActiveOutline({
+    editorView,
+    enabled: workspace.sidebarOpen && workspace.sidebarView === "outline",
+    outline: workspace.outline,
     preview: previewElement,
   });
 
@@ -158,6 +188,7 @@ export const Workspace = () => {
       <div className="flex min-h-0 min-w-0">
         {workspace.isDesktop && workspace.sidebarOpen ? (
           <FileSidebar
+            activeOutlineId={activeOutlineId}
             activePath={workspace.filePath}
             expanded={workspace.expandedFolders}
             folders={workspace.folders}
@@ -211,7 +242,6 @@ export const Workspace = () => {
                 onChange={(value) => {
                   workspace.setContent(value);
                 }}
-                onCursorChange={setCursor}
                 onImagePaste={handleImagePaste}
                 onViewChange={setEditorView}
                 reveal={workspace.editorReveal}
@@ -249,19 +279,13 @@ export const Workspace = () => {
               }
             >
               <PreviewPane
-                content={workspace.content}
+                content={previewContent}
                 filePath={workspace.filePath}
                 key={workspace.filePath ?? "scratch"}
-                onOpenLink={(href) => {
-                  void workspace.actions.openLink(href);
-                }}
+                onOpenLink={openLink}
                 onScrollContainerChange={setPreviewElement}
-                onScrollHandled={() => {
-                  workspace.actions.clearPreviewAnchor();
-                }}
-                onSelectLine={(line) => {
-                  workspace.actions.focusLine(line);
-                }}
+                onScrollHandled={clearPreviewAnchor}
+                onSelectLine={focusLine}
                 scrollTarget={workspace.previewAnchor}
               />
             </div>
@@ -271,7 +295,6 @@ export const Workspace = () => {
 
       <StatusBar
         content={workspace.content}
-        cursor={cursor}
         dirty={workspace.dirty}
         fileName={workspace.fileName}
         filePath={workspace.filePath}
@@ -279,6 +302,8 @@ export const Workspace = () => {
         savedAt={workspace.savedAt}
         saving={workspace.saving}
       />
+
+      <SelectionCount />
 
       <ConfirmDialog
         message={workspace.confirmation.message}

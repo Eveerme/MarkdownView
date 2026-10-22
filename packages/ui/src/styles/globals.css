@@ -325,10 +325,12 @@
   html,
   body {
     height: 100%;
+    /* The app frame is the window: the document itself never scrolls, so no
+       anchor or focus call can shift the frame and expose empty space. */
+    overflow: clip;
   }
   body {
     @apply bg-background text-foreground antialiased;
-    overflow: hidden;
   }
   ::selection {
     @apply bg-primary/20;
@@ -400,6 +402,9 @@
 
 .markdown-page {
   max-width: var(--reading-measure, 76ch);
+  /* The scroll sync reads block offsets with offsetTop; the article is their
+     reference box, so it must be the positioned ancestor. */
+  position: relative;
 }
 
 .markdown-body > :first-child {
@@ -536,6 +541,10 @@
   border-radius: var(--radius-lg);
   height: auto;
   max-width: 100%;
+}
+
+.markdown-body img {
+  cursor: zoom-in;
 }
 
 .markdown-body code {
