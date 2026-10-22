@@ -27,6 +27,7 @@ import {
 
 import { AboutDialog } from "#src/components/about-dialog.tsx";
 import { ModeToggle } from "#src/components/mode-toggle.tsx";
+import { SettingsDialog } from "#src/components/workspace/settings-dialog.tsx";
 import type { ViewMode } from "#src/lib/use-workspace.ts";
 
 const modes = [
@@ -188,6 +189,7 @@ export const Toolbar = ({
         </>
       ) : null}
 
+      <SettingsDialog />
       <AboutDialog />
       <ModeToggle />
     </div>

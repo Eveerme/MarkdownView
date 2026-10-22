@@ -16,6 +16,7 @@ import { exportFileName } from "#src/lib/export-html.ts";
 import { rootKey } from "#src/lib/file-tree.ts";
 import type { OutlineItem } from "#src/lib/outline.ts";
 import { useDocumentOutline } from "#src/lib/use-outline.ts";
+import { useSettings } from "#src/lib/use-settings.tsx";
 import { welcomeDocument } from "#src/lib/welcome-document.ts";
 
 export type ViewMode = "edit" | "split" | "preview";
@@ -73,6 +74,7 @@ const mergeFolders = (
 
 export const useWorkspace = () => {
   const bridge = desktop();
+  const { settings } = useSettings();
   const [content, setContent] = useState(welcomeDocument);
   const [savedContent, setSavedContent] = useState(welcomeDocument);
   const [filePath, setFilePath] = useState<string | null>(null);
@@ -690,7 +692,7 @@ export const useWorkspace = () => {
   useEffect(() => {
     let timer: ReturnType<typeof setTimeout> | undefined;
 
-    if (bridge && filePath !== null && dirty) {
+    if (bridge && filePath !== null && dirty && settings.autoSave) {
       const snapshot = content;
 
       timer = setTimeout(() => {
@@ -719,7 +721,7 @@ export const useWorkspace = () => {
         clearTimeout(timer);
       }
     };
-  }, [bridge, content, dirty, filePath]);
+  }, [bridge, content, dirty, filePath, settings.autoSave]);
 
   useEffect(() => {
     document.title = `${dirty ? "• " : ""}${fileName} — MarkdownView`;

@@ -1,6 +1,6 @@
 import path from "node:path";
 
-import { app, BrowserWindow, protocol } from "electron";
+import { app, BrowserWindow, Menu, protocol } from "electron";
 
 import { imageAssetScheme, rendererOrigin } from "@markdownview/electron";
 
@@ -76,6 +76,13 @@ const openFromShell = (filePath: string) => {
 };
 
 const start = () => {
+  // Electron's default File/Edit/View menu would be drawn inside the window on
+  // Windows and Linux, duplicating the toolbar with commands this app does not
+  // use. macOS keeps its menu bar, where the standard app and edit items live.
+  if (process.platform !== "darwin") {
+    Menu.setApplicationMenu(null);
+  }
+
   const ipc = setupIpc(devOrigin);
 
   ({ requestOpen } = ipc);

@@ -1,10 +1,10 @@
 import { markdown } from "@codemirror/lang-markdown";
 import { HighlightStyle, syntaxHighlighting } from "@codemirror/language";
-import { EditorView } from "@codemirror/view";
+import { EditorView, lineNumbers } from "@codemirror/view";
 import { tags } from "@lezer/highlight";
 import CodeMirror from "@uiw/react-codemirror";
 import type { ReactCodeMirrorRef } from "@uiw/react-codemirror";
-import { useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import type { ClipboardEvent, DragEvent } from "react";
 
 const markdownHighlight = HighlightStyle.define([
@@ -28,12 +28,16 @@ const markdownHighlight = HighlightStyle.define([
 
 const extensions = [
   markdown(),
-  EditorView.lineWrapping,
   EditorView.contentAttributes.of({ "aria-label": "Markdown 源码" }),
   syntaxHighlighting(markdownHighlight),
 ];
 
 type ImageHandler = (file: File) => Promise<string | null>;
+
+export interface EditorCursor {
+  column: number;
+  line: number;
+}
 
 const imageFrom = (data: DataTransfer | null): File | null => {
   if (data === null) {
@@ -70,19 +74,62 @@ interface EditorReveal {
 }
 
 interface EditorPaneProps {
-  onImagePaste?: ImageHandler;
+  lineNumbers: boolean;
   onChange: (value: string) => void;
+  onCursorChange?: (cursor: EditorCursor) => void;
+  onImagePaste?: ImageHandler;
+  onViewChange?: (view: EditorView | null) => void;
   reveal: EditorReveal | null;
   value: string;
+  wordWrap: boolean;
 }
 
 export const EditorPane = ({
-  onImagePaste,
+  lineNumbers: showLineNumbers,
   onChange,
+  onCursorChange,
+  onImagePaste,
+  onViewChange,
   reveal,
   value,
+  wordWrap,
 }: EditorPaneProps) => {
   const editor = useRef<ReactCodeMirrorRef>(null);
+
+  useEffect(
+    () => () => {
+      onViewChange?.(null);
+    },
+    [onViewChange]
+  );
+
+  const cursorListener = useMemo(
+    () =>
+      EditorView.updateListener.of((update) => {
+        if (!(update.selectionSet || update.docChanged)) {
+          return;
+        }
+
+        const { head } = update.state.selection.main;
+        const line = update.state.doc.lineAt(head);
+
+        onCursorChange?.({
+          column: head - line.from + 1,
+          line: line.number,
+        });
+      }),
+    [onCursorChange]
+  );
+
+  const editorExtensions = useMemo(
+    () => [
+      ...extensions,
+      ...(wordWrap ? [EditorView.lineWrapping] : []),
+      ...(showLineNumbers ? [lineNumbers()] : []),
+      cursorListener,
+    ],
+    [cursorListener, showLineNumbers, wordWrap]
+  );
 
   const pasteImage = (event: ClipboardEvent<HTMLDivElement>) => {
     const file = imageFrom(event.clipboardData);
@@ -145,9 +192,12 @@ export const EditorPane = ({
           lineNumbers: false,
         }}
         className="h-full"
-        extensions={extensions}
+        extensions={editorExtensions}
         height="100%"
         onChange={onChange}
+        onCreateEditor={(view) => {
+          onViewChange?.(view);
+        }}
         placeholder="开始写作…"
         ref={editor}
         theme="none"

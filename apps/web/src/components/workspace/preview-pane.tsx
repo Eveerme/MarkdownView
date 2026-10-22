@@ -14,6 +14,7 @@ import rehypeSlug from "rehype-slug";
 import remarkGfm from "remark-gfm";
 
 import { assetUrl } from "#src/lib/asset-url.ts";
+import { rehypeSourceLines } from "#src/lib/source-lines.ts";
 
 interface PreviewScrollTarget {
   id: string;
@@ -24,6 +25,7 @@ interface PreviewPaneProps {
   content: string;
   filePath: string | null;
   onOpenLink?: (href: string) => void;
+  onScrollContainerChange?: (element: HTMLDivElement | null) => void;
   onScrollHandled?: () => void;
   scrollTarget: PreviewScrollTarget | null;
 }
@@ -86,12 +88,21 @@ export const PreviewPane = ({
   content,
   filePath,
   onOpenLink,
+  onScrollContainerChange,
   onScrollHandled,
   scrollTarget,
 }: PreviewPaneProps) => {
   const container = useRef<HTMLDivElement>(null);
   const linkHandler = useRef(onOpenLink);
   const scrollHandled = useRef(onScrollHandled);
+
+  const attachContainer = useCallback(
+    (element: HTMLDivElement | null) => {
+      container.current = element;
+      onScrollContainerChange?.(element);
+    },
+    [onScrollContainerChange]
+  );
 
   const resolveAsset = useCallback(
     (src: string | undefined) => assetUrl({ from: filePath, src }),
@@ -129,7 +140,7 @@ export const PreviewPane = ({
   return (
     <LinkHandlerContext.Provider value={dispatchOpenLink}>
       <AssetUrlContext.Provider value={resolveAsset}>
-        <div className="h-full min-h-0 overflow-y-auto" ref={container}>
+        <div className="preview-scroll h-full min-h-0" ref={attachContainer}>
           {content.trim() === "" ? (
             <div className="blank-page grid h-full place-items-center px-8 py-16 text-center">
               <div className="max-w-xs">
@@ -141,10 +152,10 @@ export const PreviewPane = ({
               </div>
             </div>
           ) : (
-            <article className="markdown-body mx-auto w-full max-w-[76ch] px-8 pt-12 pb-24 sm:px-10">
+            <article className="markdown-body markdown-page mx-auto w-full px-8 pt-12 pb-24 sm:px-10">
               <Markdown
                 components={components}
-                rehypePlugins={[rehypeSlug, rehypeHighlight]}
+                rehypePlugins={[rehypeSlug, rehypeHighlight, rehypeSourceLines]}
                 remarkPlugins={[remarkGfm]}
               >
                 {content}

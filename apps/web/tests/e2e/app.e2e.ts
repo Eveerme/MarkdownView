@@ -101,3 +101,68 @@ test("the dark theme survives a reload", async ({ page }) => {
   await page.reload({ waitUntil: "networkidle" });
   await expect(page.locator("html")).toHaveClass(/\bdark\b/u);
 });
+
+test("the split panes scroll together", async ({ page }) => {
+  await visit(page, "/");
+
+  await page.locator(".cm-content").click();
+  await page.keyboard.press("Control+A");
+  await page.keyboard.insertText(
+    Array.from(
+      { length: 120 },
+      (_, index) => `## 第 ${index} 节\n\n第 ${index} 段占位文字。`
+    ).join("\n\n")
+  );
+
+  const editor = page.locator(".cm-scroller");
+  const preview = page.locator(".preview-scroll");
+
+  await editor.evaluate((element) => {
+    element.scrollTop = element.scrollHeight;
+    element.dispatchEvent(new Event("scroll"));
+  });
+
+  await expect
+    .poll(async () => {
+      const top = await preview.evaluate((element) => element.scrollTop);
+
+      return top;
+    })
+    .toBeGreaterThan(0);
+
+  // The pane that moved last owns the sync; wait out its echo guard first.
+  await page.waitForTimeout(200);
+
+  await preview.evaluate((element) => {
+    element.scrollTop = 0;
+    element.dispatchEvent(new Event("scroll"));
+  });
+
+  await expect
+    .poll(async () => {
+      const top = await editor.evaluate((element) => element.scrollTop);
+
+      return top;
+    })
+    .toBeLessThan(1);
+});
+
+test("settings turn on line numbers and keep the choice", async ({ page }) => {
+  await visit(page, "/");
+
+  await expect(page.locator(".cm-lineNumbers")).toHaveCount(0);
+
+  await page.getByRole("button", { name: "设置" }).click();
+
+  const dialog = page.getByRole("dialog");
+
+  await expect(dialog).toBeVisible();
+  await dialog.getByRole("switch", { name: "显示行号" }).click();
+  await page.keyboard.press("Escape");
+  await expect(dialog).toBeHidden();
+
+  await expect(page.locator(".cm-lineNumbers")).toBeVisible();
+
+  await page.reload({ waitUntil: "networkidle" });
+  await expect(page.locator(".cm-lineNumbers")).toBeVisible();
+});

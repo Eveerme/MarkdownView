@@ -60,6 +60,17 @@ export const createMainWindow = ({
 
     return { action: "deny" };
   });
+
+  // The native menu is gone, and its Ctrl+Shift+I with it; keep DevTools a key away in development.
+  if (devOrigin !== null) {
+    win.webContents.on("before-input-event", (event, input) => {
+      if (input.type === "keyDown" && input.key === "F12") {
+        event.preventDefault();
+        win.webContents.toggleDevTools();
+      }
+    });
+  }
+
   win.webContents.on("will-navigate", (event, target) => {
     if (!isTrustedUrl(target, devOrigin)) {
       event.preventDefault();

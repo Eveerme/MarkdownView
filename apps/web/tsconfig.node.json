@@ -1,6 +1,7 @@
 {
   "extends": "@markdownview/config/typescript/node.json",
   "compilerOptions": {
+    "lib": ["ES2024", "DOM"],
     "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.node.tsbuildinfo"
   },
   "include": ["*.config.ts", "tests"]

@@ -1,5 +1,6 @@
 import { useMemo } from "react";
 
+import type { EditorCursor } from "#src/components/workspace/editor-pane.tsx";
 import { countLines, countWords } from "#src/lib/markdown-stats.ts";
 
 const timeFormat = new Intl.DateTimeFormat("zh-CN", {
@@ -9,6 +10,7 @@ const timeFormat = new Intl.DateTimeFormat("zh-CN", {
 
 interface StatusBarProps {
   content: string;
+  cursor: EditorCursor;
   dirty: boolean;
   fileName: string;
   filePath: string | null;
@@ -48,6 +50,7 @@ const saveState = ({
 
 export const StatusBar = ({
   content,
+  cursor,
   dirty,
   fileName,
   filePath,
@@ -67,6 +70,9 @@ export const StatusBar = ({
           : "浏览器预览 · 文件读写需在桌面版使用"}
       </span>
       <span className="ml-auto flex shrink-0 items-center gap-3 font-mono tabular-nums">
+        <span title="光标位置">
+          {cursor.line}:{cursor.column}
+        </span>
         <span>{words} 字</span>
         <span className="hidden sm:inline">{characters} 字符</span>
         <span>{lines} 行</span>

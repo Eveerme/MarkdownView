@@ -305,13 +305,23 @@
   flex: 1 1 0;
 }
 
+/* The preview surface owns its own scrolling for the split-scroll sync. */
+@utility preview-scroll {
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
 .markdown-body {
   color: var(--foreground);
   font-family: var(--font-serif);
-  font-size: 1.0625rem;
+  font-size: var(--preview-font-size, 1.0625rem);
   font-weight: 400;
   line-height: 1.78;
   overflow-wrap: anywhere;
+}
+
+.markdown-page {
+  max-width: var(--preview-measure, 76ch);
 }
 
 .markdown-body > :first-child {
@@ -564,8 +574,28 @@
 
 .editor-pane .cm-scroller {
   font-family: var(--font-mono);
-  font-size: 0.875rem;
+  font-size: var(--editor-font-size, 0.875rem);
   line-height: 1.9;
+}
+
+.editor-pane .cm-gutters {
+  background: transparent;
+  border-right: 0;
+  color: color-mix(in oklch, var(--muted-foreground) 65%, transparent);
+}
+
+.editor-pane .cm-lineNumbers .cm-gutterElement {
+  padding: 0 0.75rem 0 0.5rem;
+}
+
+/* With the gutter on, the numbers follow the text column instead of the pane
+   edge, which the centered draft layout would otherwise leave far behind. */
+.editor-pane:has(.cm-lineNumbers) .cm-gutters {
+  margin-left: max(0px, calc((100% - 74ch - 4rem) / 2));
+}
+
+.editor-pane:has(.cm-lineNumbers) .cm-content {
+  margin-inline: 0 auto;
 }
 
 .editor-pane .cm-content {

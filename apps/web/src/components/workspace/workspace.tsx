@@ -1,25 +1,55 @@
+import type { EditorView } from "@codemirror/view";
 import { useEffect, useRef, useState } from "react";
-import type { PointerEvent as ReactPointerEvent } from "react";
+import type { CSSProperties, PointerEvent as ReactPointerEvent } from "react";
 
 import { ConfirmDialog } from "#src/components/workspace/confirm-dialog.tsx";
 import { EditorPane } from "#src/components/workspace/editor-pane.tsx";
+import type { EditorCursor } from "#src/components/workspace/editor-pane.tsx";
 import { FileSidebar } from "#src/components/workspace/file-sidebar.tsx";
 import { PreviewPane } from "#src/components/workspace/preview-pane.tsx";
 import { StatusBar } from "#src/components/workspace/status-bar.tsx";
 import { Toolbar } from "#src/components/workspace/toolbar.tsx";
+import { useScrollSync } from "#src/lib/use-scroll-sync.ts";
+import { useSettings } from "#src/lib/use-settings.tsx";
 import { useWorkspace } from "#src/lib/use-workspace.ts";
 
 const clamp = (value: number, min: number, max: number) =>
   Math.min(max, Math.max(min, value));
 
+type CustomProperties = CSSProperties & Record<`--${string}`, string>;
+
 export const Workspace = () => {
   const workspace = useWorkspace();
-  const [ratio, setRatio] = useState(0.5);
+  const { settings, update } = useSettings();
+  const [ratio, setRatio] = useState(settings.splitRatio);
+  const [editorView, setEditorView] = useState<EditorView | null>(null);
+
+  const [previewElement, setPreviewElement] = useState<HTMLDivElement | null>(
+    null
+  );
+
+  const [cursor, setCursor] = useState<EditorCursor>({ column: 1, line: 1 });
   const panes = useRef<HTMLDivElement>(null);
+  const ratioRef = useRef(settings.splitRatio);
+
+  const split = workspace.mode === "split";
+
+  useScrollSync({
+    content: workspace.content,
+    editorView,
+    enabled: split && settings.syncScroll,
+    preview: previewElement,
+  });
 
   useEffect(() => {
     panes.current?.style.setProperty("--split-ratio", `${ratio * 100}%`);
   }, [ratio]);
+
+  const stageStyle: CustomProperties = {
+    "--editor-font-size": `${settings.editorFontSize}px`,
+    "--preview-font-size": `${settings.previewFontSize}px`,
+    "--preview-measure": `${settings.previewWidth}ch`,
+  };
 
   const startResize = (event: ReactPointerEvent<HTMLButtonElement>) => {
     const container = panes.current;
@@ -34,21 +64,22 @@ export const Workspace = () => {
 
     const move = (moveEvent: PointerEvent) => {
       const next = (moveEvent.clientX - bounds.left) / bounds.width;
-      setRatio(clamp(next, 0.28, 0.72));
+
+      ratioRef.current = clamp(next, 0.28, 0.72);
+      setRatio(ratioRef.current);
     };
 
     const stop = () => {
       window.removeEventListener("pointermove", move);
       window.removeEventListener("pointerup", stop);
       document.body.classList.remove("cursor-col-resize", "select-none");
+      update({ splitRatio: ratioRef.current });
     };
 
     document.body.classList.add("cursor-col-resize", "select-none");
     window.addEventListener("pointermove", move);
     window.addEventListener("pointerup", stop);
   };
-
-  const split = workspace.mode === "split";
 
   const handleImagePaste = async (file: File) => {
     const snippet = await workspace.actions.saveImage(file);
@@ -57,7 +88,10 @@ export const Workspace = () => {
   };
 
   return (
-    <div className="grid h-svh grid-rows-[auto_minmax(0,1fr)_auto] overflow-hidden">
+    <div
+      className="grid h-svh grid-rows-[auto_minmax(0,1fr)_auto] overflow-hidden"
+      style={stageStyle}
+    >
       <Toolbar
         dirty={workspace.dirty}
         fileName={workspace.fileName}
@@ -143,12 +177,16 @@ export const Workspace = () => {
               }
             >
               <EditorPane
+                lineNumbers={settings.lineNumbers}
                 onChange={(value) => {
                   workspace.setContent(value);
                 }}
+                onCursorChange={setCursor}
                 onImagePaste={handleImagePaste}
+                onViewChange={setEditorView}
                 reveal={workspace.editorReveal}
                 value={workspace.content}
+                wordWrap={settings.wordWrap}
               />
             </div>
           )}
@@ -182,6 +220,7 @@ export const Workspace = () => {
                 onOpenLink={(href) => {
                   void workspace.actions.openLink(href);
                 }}
+                onScrollContainerChange={setPreviewElement}
                 onScrollHandled={() => {
                   workspace.actions.clearPreviewAnchor();
                 }}
@@ -194,6 +233,7 @@ export const Workspace = () => {
 
       <StatusBar
         content={workspace.content}
+        cursor={cursor}
         dirty={workspace.dirty}
         fileName={workspace.fileName}
         filePath={workspace.filePath}
