@@ -34,8 +34,10 @@
     "react-markdown": "catalog:",
     "rehype-highlight": "catalog:",
     "rehype-slug": "catalog:",
+    "rehype-stringify": "catalog:",
     "remark-gfm": "catalog:",
     "remark-parse": "catalog:",
+    "remark-rehype": "catalog:",
     "sonner": "catalog:",
     "unified": "catalog:",
     "unist-util-visit": "catalog:"
@@ -45,6 +47,7 @@
     "@playwright/test": "catalog:",
     "@tailwindcss/vite": "catalog:",
     "@tanstack/router-plugin": "catalog:",
+    "@types/hast": "catalog:",
     "@types/node": "catalog:",
     "@types/react": "catalog:",
     "@types/react-dom": "catalog:",

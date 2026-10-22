@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import type {
+  ExportFormat,
   MarkdownDocument,
   MarkdownFolder,
   MarkdownSavedFile,
@@ -10,6 +11,8 @@ import type {
 } from "@markdownview/electron";
 
 import { desktop } from "#src/lib/desktop.ts";
+import { createExportDocument } from "#src/lib/export-document.ts";
+import { exportFileName } from "#src/lib/export-html.ts";
 import { rootKey } from "#src/lib/file-tree.ts";
 import type { OutlineItem } from "#src/lib/outline.ts";
 import { useDocumentOutline } from "#src/lib/use-outline.ts";
@@ -307,6 +310,74 @@ export const useWorkspace = () => {
     revealNonce.current += 1;
 
     return revealNonce.current;
+  };
+
+  const saveImage = async (file: File): Promise<string | null> => {
+    if (!bridge) {
+      toast.info("插入图片需在桌面版使用。");
+
+      return null;
+    }
+
+    if (filePath === null) {
+      toast.info("请先保存文档，再插入图片。");
+
+      return null;
+    }
+
+    try {
+      const saved = await bridge.saveImage({
+        data: new Uint8Array(await file.arrayBuffer()),
+        from: filePath,
+        mimeType: file.type,
+      });
+
+      const alt =
+        file.name
+          .replace(/\.[^.]+$/u, "")
+          .replaceAll(/[[\]]/gu, "")
+          .trim() || "图片";
+
+      return `![${alt}](${saved.relativePath})`;
+    } catch (error) {
+      if (error instanceof Error) {
+        report("插入图片失败", error);
+      }
+
+      return null;
+    }
+  };
+
+  const exportDocument = async (format: ExportFormat) => {
+    if (!bridge) {
+      toast.info("导出需在桌面版使用。");
+
+      return;
+    }
+
+    try {
+      const suggestedName = exportFileName(fileName);
+
+      const html = await createExportDocument({
+        content,
+        filePath,
+        title: suggestedName,
+      });
+
+      const saved = await bridge.exportDocument({
+        format,
+        html,
+        suggestedName,
+      });
+
+      if (saved !== null) {
+        toast.success(`已导出 ${saved.name}`);
+      }
+    } catch (error) {
+      if (error instanceof Error) {
+        report("导出失败", error);
+      }
+    }
   };
 
   const openLinkedDocument = async (target: ResolvedLink) => {
@@ -714,6 +785,7 @@ export const useWorkspace = () => {
     actions: {
       clearPreviewAnchor,
       clearRecentFiles,
+      exportDocument,
       newDocument,
       openFile,
       openFolder,
@@ -724,6 +796,7 @@ export const useWorkspace = () => {
       revealOutline,
       save,
       saveAs,
+      saveImage,
       toggleFolder,
     },
     confirmation: {

@@ -10,6 +10,8 @@ import { ThemeProvider } from "next-themes";
 
 import { Toaster } from "@markdownview/ui/components/sonner";
 
+import { themeValues } from "#src/lib/themes.ts";
+
 interface RouterContext {
   queryClient: QueryClient;
 }
@@ -20,6 +22,7 @@ const RootLayout = () => (
     defaultTheme="system"
     disableTransitionOnChange
     scriptProps={{ type: "application/json" }}
+    themes={[...themeValues]}
   >
     <HeadContent />
     <Outlet />

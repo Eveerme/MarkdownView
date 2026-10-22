@@ -12,6 +12,7 @@ import {
   DialogTrigger,
 } from "@markdownview/ui/components/dialog";
 
+import { LogoMark } from "#src/components/logo-mark.tsx";
 import {
   appVersion,
   issuesUrl,
@@ -66,11 +67,8 @@ export const AboutDialog = () => {
         <DialogHeader>
           <DialogTitle>
             <span className="flex items-center gap-2.5">
-              <span
-                aria-hidden="true"
-                className="bg-primary text-primary-foreground grid size-8 place-items-center rounded-lg font-serif text-lg leading-none"
-              >
-                M
+              <span className="bg-background grid size-8 place-items-center rounded-lg">
+                <LogoMark className="text-foreground size-8" />
               </span>
               MarkdownView
             </span>

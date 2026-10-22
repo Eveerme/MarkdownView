@@ -14,7 +14,8 @@ type ProxyInit = RequestInit & { duplex?: "half" };
 
 const contentSecurityPolicy = [
   "default-src 'self'",
-  "img-src 'self' data: blob:",
+  "img-src 'self' data: blob: mdview:",
+  "connect-src 'self' mdview:",
   "style-src 'self' 'unsafe-inline'",
   "font-src 'self' data:",
   "object-src 'none'",

@@ -21,7 +21,13 @@ export const desktopChannels = {
   saveFileAs: "desktop:file:save-as",
   recentFiles: "desktop:recent-files:list",
   clearRecentFiles: "desktop:recent-files:clear",
+  saveImage: "desktop:image:save",
+  exportDocument: "desktop:document:export",
 } as const;
+
+/** The schemes the renderer loads local note images from. */
+export const imageAssetScheme = "mdview";
+export const imageAssetHost = "asset";
 
 export const versionsSchema = z.object({
   chrome: z.string(),
@@ -109,6 +115,30 @@ export const saveFileAsRequestSchema = z.object({
 
 export type SaveFileAsRequest = z.infer<typeof saveFileAsRequestSchema>;
 
+export const saveImageRequestSchema = z.object({
+  data: z.instanceof(Uint8Array),
+  from: z.string().min(1),
+  mimeType: z.string().min(1),
+});
+
+export type SaveImageRequest = z.infer<typeof saveImageRequestSchema>;
+
+export const savedImageSchema = z.object({
+  relativePath: z.string().min(1),
+});
+
+export type SavedImage = z.infer<typeof savedImageSchema>;
+
+export const exportDocumentRequestSchema = z.object({
+  format: z.enum(["html", "pdf"]),
+  html: z.string().min(1),
+  suggestedName: z.string().min(1),
+});
+
+export type ExportDocumentRequest = z.infer<typeof exportDocumentRequestSchema>;
+
+export type ExportFormat = ExportDocumentRequest["format"];
+
 export const filePathSchema = z.string().min(1);
 
 export interface DesktopApi {
@@ -128,6 +158,10 @@ export interface DesktopApi {
   saveFileAs: (request: SaveFileAsRequest) => Promise<MarkdownSavedFile | null>;
   recentFiles: () => Promise<RecentFile[]>;
   clearRecentFiles: () => Promise<void>;
+  saveImage: (request: SaveImageRequest) => Promise<SavedImage>;
+  exportDocument: (
+    request: ExportDocumentRequest
+  ) => Promise<MarkdownSavedFile | null>;
 }
 
 declare global {

@@ -1,7 +1,9 @@
 import {
   Columns2Icon,
   EyeIcon,
+  FileCodeIcon,
   FilePlusIcon,
+  FileTextIcon,
   FolderOpenIcon,
   FolderPlusIcon,
   LoaderCircleIcon,
@@ -12,6 +14,7 @@ import {
   SaveIcon,
 } from "lucide-react";
 
+import type { ExportFormat } from "@markdownview/electron";
 import { Button } from "@markdownview/ui/components/button";
 import {
   DropdownMenu,
@@ -41,6 +44,7 @@ interface ToolbarProps {
   onNew: () => void;
   onOpenFile: () => void;
   onOpenFolder: () => void;
+  onExport: (format: ExportFormat) => void;
   onSave: () => void;
   onSaveAs: () => void;
   onToggleSidebar: () => void;
@@ -57,6 +61,7 @@ export const Toolbar = ({
   onNew,
   onOpenFile,
   onOpenFolder,
+  onExport,
   onSave,
   onSaveAs,
   onToggleSidebar,
@@ -76,15 +81,6 @@ export const Toolbar = ({
           {sidebarOpen ? <PanelLeftCloseIcon /> : <PanelLeftOpenIcon />}
         </Button>
       ) : null}
-      <span
-        aria-hidden="true"
-        className="bg-primary text-primary-foreground ml-1 grid size-6 place-items-center rounded-md font-serif text-base leading-none"
-      >
-        M
-      </span>
-      <span className="ml-2 hidden text-xs font-semibold tracking-tight sm:inline">
-        MarkdownView
-      </span>
     </div>
 
     <div className="flex min-w-0 flex-1 items-center justify-center gap-2 px-2">
@@ -156,6 +152,23 @@ export const Toolbar = ({
                 <SaveAllIcon />
                 另存为…
                 <DropdownMenuShortcut>Ctrl+Shift+S</DropdownMenuShortcut>
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                onClick={() => {
+                  onExport("html");
+                }}
+              >
+                <FileCodeIcon />
+                导出 HTML…
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => {
+                  onExport("pdf");
+                }}
+              >
+                <FileTextIcon />
+                导出 PDF…
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>

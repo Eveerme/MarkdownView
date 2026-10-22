@@ -50,6 +50,12 @@ export const Workspace = () => {
 
   const split = workspace.mode === "split";
 
+  const handleImagePaste = async (file: File) => {
+    const snippet = await workspace.actions.saveImage(file);
+
+    return snippet;
+  };
+
   return (
     <div className="grid h-svh grid-rows-[auto_minmax(0,1fr)_auto] overflow-hidden">
       <Toolbar
@@ -68,6 +74,9 @@ export const Workspace = () => {
         }}
         onOpenFolder={() => {
           workspace.actions.openFolder();
+        }}
+        onExport={(format) => {
+          void workspace.actions.exportDocument(format);
         }}
         onSave={() => {
           void workspace.actions.save();
@@ -137,6 +146,7 @@ export const Workspace = () => {
                 onChange={(value) => {
                   workspace.setContent(value);
                 }}
+                onImagePaste={handleImagePaste}
                 reveal={workspace.editorReveal}
                 value={workspace.content}
               />
@@ -167,6 +177,7 @@ export const Workspace = () => {
             >
               <PreviewPane
                 content={workspace.content}
+                filePath={workspace.filePath}
                 key={workspace.filePath ?? "scratch"}
                 onOpenLink={(href) => {
                   void workspace.actions.openLink(href);

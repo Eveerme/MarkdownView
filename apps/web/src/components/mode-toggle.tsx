@@ -1,4 +1,4 @@
-import { MoonIcon, SunIcon } from "lucide-react";
+import { PaletteIcon } from "lucide-react";
 import { useTheme } from "next-themes";
 
 import { Button } from "@markdownview/ui/components/button";
@@ -10,6 +10,8 @@ import {
   DropdownMenuTrigger,
 } from "@markdownview/ui/components/dropdown-menu";
 
+import { themeOptions } from "#src/lib/themes.ts";
+
 export const ModeToggle = () => {
   const { theme, setTheme } = useTheme();
 
@@ -20,14 +22,15 @@ export const ModeToggle = () => {
           <Button aria-label="Toggle theme" size="icon" variant="ghost" />
         }
       >
-        <SunIcon className="dark:hidden" />
-        <MoonIcon className="hidden dark:block" />
+        <PaletteIcon />
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
         <DropdownMenuRadioGroup onValueChange={setTheme} value={theme}>
-          <DropdownMenuRadioItem value="light">Light</DropdownMenuRadioItem>
-          <DropdownMenuRadioItem value="dark">Dark</DropdownMenuRadioItem>
-          <DropdownMenuRadioItem value="system">System</DropdownMenuRadioItem>
+          {themeOptions.map(({ label, value }) => (
+            <DropdownMenuRadioItem key={value} value={value}>
+              {label}
+            </DropdownMenuRadioItem>
+          ))}
         </DropdownMenuRadioGroup>
       </DropdownMenuContent>
     </DropdownMenu>

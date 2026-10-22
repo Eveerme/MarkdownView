@@ -6,6 +6,7 @@ import { z } from "zod";
 import type {
   DesktopApi,
   DesktopVersions,
+  ExportDocumentRequest,
   MarkdownDocument,
   MarkdownFolder,
   MarkdownOpenRequest,
@@ -15,6 +16,8 @@ import type {
   ResolveLinkRequest,
   SaveFileAsRequest,
   SaveFileRequest,
+  SaveImageRequest,
+  SavedImage,
 } from "@markdownview/electron";
 import {
   desktopBridgeGlobal,
@@ -26,6 +29,7 @@ import {
   recentFileSchema,
   resolvedLinkSchema,
   resolveLinkRequestSchema,
+  savedImageSchema,
   versionsSchema,
 } from "@markdownview/electron";
 
@@ -33,6 +37,8 @@ type InvokePayload =
   | string
   | SaveFileRequest
   | SaveFileAsRequest
+  | SaveImageRequest
+  | ExportDocumentRequest
   | ResolveLinkRequest;
 
 const invoke = async <T>(
@@ -174,6 +180,28 @@ const desktop = {
 
   clearRecentFiles: async (): Promise<void> => {
     await invoke(desktopChannels.clearRecentFiles, z.null());
+  },
+
+  saveImage: async (request: SaveImageRequest): Promise<SavedImage> => {
+    const saved = await invoke(
+      desktopChannels.saveImage,
+      savedImageSchema,
+      request
+    );
+
+    return saved;
+  },
+
+  exportDocument: async (
+    request: ExportDocumentRequest
+  ): Promise<MarkdownSavedFile | null> => {
+    const saved = await invoke(
+      desktopChannels.exportDocument,
+      markdownSavedFileSchema.nullable(),
+      request
+    );
+
+    return saved;
   },
 } satisfies DesktopApi;
 

@@ -5,6 +5,7 @@ import { tags } from "@lezer/highlight";
 import CodeMirror from "@uiw/react-codemirror";
 import type { ReactCodeMirrorRef } from "@uiw/react-codemirror";
 import { useEffect, useRef } from "react";
+import type { ClipboardEvent, DragEvent } from "react";
 
 const markdownHighlight = HighlightStyle.define([
   {
@@ -32,19 +33,80 @@ const extensions = [
   syntaxHighlighting(markdownHighlight),
 ];
 
+type ImageHandler = (file: File) => Promise<string | null>;
+
+const imageFrom = (data: DataTransfer | null): File | null => {
+  if (data === null) {
+    return null;
+  }
+
+  const image = [...data.files].find((file) => file.type.startsWith("image/"));
+
+  if (image === undefined || data.getData("text/plain") !== "") {
+    return null;
+  }
+
+  return image;
+};
+
+const insertImage = async (
+  view: EditorView | undefined,
+  file: File,
+  handler: ImageHandler | undefined
+) => {
+  const snippet = await handler?.(file);
+
+  if (view === undefined || snippet === null || snippet === undefined) {
+    return;
+  }
+
+  view.dispatch(view.state.replaceSelection(snippet));
+  view.focus();
+};
+
 interface EditorReveal {
   line: number;
   nonce: number;
 }
 
 interface EditorPaneProps {
-  value: string;
+  onImagePaste?: ImageHandler;
   onChange: (value: string) => void;
   reveal: EditorReveal | null;
+  value: string;
 }
 
-export const EditorPane = ({ value, onChange, reveal }: EditorPaneProps) => {
+export const EditorPane = ({
+  onImagePaste,
+  onChange,
+  reveal,
+  value,
+}: EditorPaneProps) => {
   const editor = useRef<ReactCodeMirrorRef>(null);
+
+  const pasteImage = (event: ClipboardEvent<HTMLDivElement>) => {
+    const file = imageFrom(event.clipboardData);
+
+    if (file === null) {
+      return;
+    }
+
+    event.preventDefault();
+    event.stopPropagation();
+    void insertImage(editor.current?.view, file, onImagePaste);
+  };
+
+  const dropImage = (event: DragEvent<HTMLDivElement>) => {
+    const file = imageFrom(event.dataTransfer);
+
+    if (file === null) {
+      return;
+    }
+
+    event.preventDefault();
+    event.stopPropagation();
+    void insertImage(editor.current?.view, file, onImagePaste);
+  };
 
   useEffect(() => {
     if (reveal === null) {
@@ -68,7 +130,11 @@ export const EditorPane = ({ value, onChange, reveal }: EditorPaneProps) => {
   }, [reveal]);
 
   return (
-    <div className="editor-pane h-full min-h-0 overflow-hidden">
+    <div
+      className="editor-pane h-full min-h-0 overflow-hidden"
+      onDropCapture={dropImage}
+      onPasteCapture={pasteImage}
+    >
       <CodeMirror
         basicSetup={{
           autocompletion: false,

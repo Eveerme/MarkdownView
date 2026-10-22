@@ -5,20 +5,26 @@ import type { IpcMainInvokeEvent, OpenDialogOptions } from "electron";
 
 import {
   desktopChannels,
+  exportDocumentRequestSchema,
   filePathSchema,
   resolveLinkRequestSchema,
   saveFileAsRequestSchema,
   saveFileRequestSchema,
+  saveImageRequestSchema,
 } from "@markdownview/electron";
 import type {
   DesktopVersions,
+  ExportDocumentRequest,
   MarkdownFolder,
   MarkdownOpenRequest,
   ResolveLinkRequest,
   SaveFileAsRequest,
   SaveFileRequest,
+  SaveImageRequest,
 } from "@markdownview/electron";
 
+import { saveImageAsset } from "#src/main/assets.ts";
+import { exportMarkdownDocument } from "#src/main/export.ts";
 import {
   isMarkdownPath,
   listMarkdownFiles,
@@ -30,6 +36,7 @@ import {
   readStoredFolders,
   writeStoredFolders,
 } from "#src/main/folder-store.ts";
+import { createImageProtocolHandler } from "#src/main/image-protocol.ts";
 import { resolveMarkdownLink } from "#src/main/links.ts";
 import { createRecentFilesStore } from "#src/main/recent-files.ts";
 import { isTrustedUrl } from "#src/main/renderer-route.ts";
@@ -37,6 +44,8 @@ import { isTrustedUrl } from "#src/main/renderer-route.ts";
 export interface DesktopIpc {
   /** Hand the renderer a Markdown file the operating system asked to open. */
   requestOpen: (filePath: string) => void;
+  /** Answer `mdview://` image requests from the renderer. */
+  serveImage: (request: Request) => Promise<Response>;
 }
 
 const versions = (): DesktopVersions => ({
@@ -397,5 +406,33 @@ export const setupIpc = (devOrigin: string | null): DesktopIpc => {
     return null;
   });
 
-  return { requestOpen };
+  ipcMain.handle(
+    desktopChannels.saveImage,
+    async (event, payload: SaveImageRequest) => {
+      assertTrusted(event);
+
+      const request = saveImageRequestSchema.parse(payload);
+      const from = await assertAllowed(request.from);
+
+      return await saveImageAsset({ ...request, from });
+    }
+  );
+
+  ipcMain.handle(
+    desktopChannels.exportDocument,
+    async (event, payload: ExportDocumentRequest) => {
+      assertTrusted(event);
+
+      const request = exportDocumentRequestSchema.parse(payload);
+
+      return await exportMarkdownDocument(request, owner(event));
+    }
+  );
+
+  const serveImage = createImageProtocolHandler(async () => ({
+    isAllowedDocument: (filePath) => openedFiles.has(path.resolve(filePath)),
+    roots: [...openedFolders, ...(await folderPaths())],
+  }));
+
+  return { requestOpen, serveImage };
 };

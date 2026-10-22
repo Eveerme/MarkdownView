@@ -1,6 +1,6 @@
 {
   "name": "@markdownview/desktop",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "private": true,
   "description": "一个专注写作的本地 Markdown 编辑器",
   "author": "MarkdownView",

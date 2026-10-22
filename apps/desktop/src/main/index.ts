@@ -1,8 +1,8 @@
 import path from "node:path";
 
-import { app, BrowserWindow } from "electron";
+import { app, BrowserWindow, protocol } from "electron";
 
-import { rendererOrigin } from "@markdownview/electron";
+import { imageAssetScheme, rendererOrigin } from "@markdownview/electron";
 
 import { defaultApiOrigin } from "#src/main/config.ts";
 import { isMarkdownPath } from "#src/main/files.ts";
@@ -47,6 +47,20 @@ const open = () =>
     url: devOrigin ?? `${rendererOrigin}/`,
   });
 
+// Note images need a real scheme: fetch, a host, and query parsing, before the app is ready.
+protocol.registerSchemesAsPrivileged([
+  {
+    privileges: {
+      corsEnabled: true,
+      secure: true,
+      standard: true,
+      stream: true,
+      supportFetchAPI: true,
+    },
+    scheme: imageAssetScheme,
+  },
+]);
+
 let requestOpen: ((filePath: string) => void) | null = null;
 const queuedOpenPaths: string[] = [];
 
@@ -65,6 +79,8 @@ const start = () => {
   const ipc = setupIpc(devOrigin);
 
   ({ requestOpen } = ipc);
+
+  protocol.handle(imageAssetScheme, ipc.serveImage);
 
   if (devOrigin === null) {
     serveRenderer({
