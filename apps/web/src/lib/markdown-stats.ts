@@ -11,6 +11,9 @@ export const countWords = (text: string): number => {
   return ideographs + words;
 };
 
+/** Every letter, digit, symbol, space and CJK character in the text. */
+export const countCharacters = (text: string): number => text.length;
+
 export const countLines = (text: string): number => {
   if (text === "") {
     return 0;

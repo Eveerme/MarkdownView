@@ -6,6 +6,7 @@ import { afterAll, describe, expect, it } from "vite-plus/test";
 
 import {
   isPathInside,
+  isPathWithin,
   parseMarkdownHref,
   resolveMarkdownLink,
 } from "#src/main/links.ts";
@@ -147,6 +148,14 @@ describe("Markdown links", () => {
     it("does not confuse a ..file name with a parent directory", () => {
       expect(isPathInside(root, path.join(root, "..note.md"))).toBeTruthy();
       expect(isPathInside(root, path.join(root, "..", "note.md"))).toBeFalsy();
+    });
+
+    it("counts the folder itself as within, but not a sibling", () => {
+      expect(isPathWithin(root, root)).toBeTruthy();
+      expect(isPathWithin(root, path.join(root, "notes"))).toBeTruthy();
+      expect(
+        isPathWithin(path.join(root, "notes"), path.join(root, "other"))
+      ).toBeFalsy();
     });
   });
 });

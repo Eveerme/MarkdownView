@@ -11,10 +11,17 @@ import type { ReactNode } from "react";
 
 import type { MarkdownFile, MarkdownFolder } from "@markdownview/electron";
 import { Button } from "@markdownview/ui/components/button";
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuTrigger,
+} from "@markdownview/ui/components/context-menu";
 
 import {
   buildFileTree,
   directoryKey,
+  directoryPath,
   expandedKeysForFile,
   rootKey,
 } from "#src/lib/file-tree.ts";
@@ -27,6 +34,8 @@ interface FileTreeProps {
   onOpen: (path: string) => void;
   onRefresh: (folderPath: string) => void;
   onRemove: (folderPath: string) => void;
+  onRevealFile: (path: string) => void;
+  onRevealFolder: (path: string) => void;
   onToggle: (key: string) => void;
 }
 
@@ -34,29 +43,44 @@ interface FileRowProps {
   active: boolean;
   file: MarkdownFile;
   onOpen: (path: string) => void;
+  onReveal: (path: string) => void;
 }
 
-const FileRow = ({ active, file, onOpen }: FileRowProps) => (
+const FileRow = ({ active, file, onOpen, onReveal }: FileRowProps) => (
   <li>
-    <button
-      className={`group flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-xs transition-colors ${
-        active
-          ? "bg-sidebar-accent text-sidebar-accent-foreground"
-          : "text-muted-foreground hover:bg-sidebar-accent/60 hover:text-sidebar-foreground"
-      }`}
-      onClick={() => {
-        onOpen(file.path);
-      }}
-      title={file.relativePath}
-      type="button"
-    >
-      <FileTextIcon
-        className={`size-3.5 shrink-0 ${
-          active ? "text-primary" : "opacity-50"
-        }`}
-      />
-      <span className="truncate">{file.name}</span>
-    </button>
+    <ContextMenu>
+      <ContextMenuTrigger className="block w-full">
+        <button
+          className={`group flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-xs transition-colors ${
+            active
+              ? "bg-sidebar-accent text-sidebar-accent-foreground"
+              : "text-muted-foreground hover:bg-sidebar-accent/60 hover:text-sidebar-foreground"
+          }`}
+          onClick={() => {
+            onOpen(file.path);
+          }}
+          title={file.relativePath}
+          type="button"
+        >
+          <FileTextIcon
+            className={`size-3.5 shrink-0 ${
+              active ? "text-primary" : "opacity-50"
+            }`}
+          />
+          <span className="truncate">{file.name}</span>
+        </button>
+      </ContextMenuTrigger>
+      <ContextMenuContent>
+        <ContextMenuItem
+          onClick={() => {
+            onReveal(file.path);
+          }}
+        >
+          <FolderOpenIcon />
+          打开文件所在的位置
+        </ContextMenuItem>
+      </ContextMenuContent>
+    </ContextMenu>
   </li>
 );
 
@@ -67,6 +91,8 @@ interface DirectoryNodeProps {
   expanded: ReadonlySet<string>;
   folderPath: string;
   onOpen: (path: string) => void;
+  onRevealFile: (path: string) => void;
+  onRevealFolder: (path: string) => void;
   onToggle: (key: string) => void;
 }
 
@@ -77,6 +103,8 @@ const DirectoryNode = ({
   expanded,
   folderPath,
   onOpen,
+  onRevealFile,
+  onRevealFolder,
   onToggle,
 }: DirectoryNodeProps) => {
   const key = directoryKey(folderPath, directory.relativePath);
@@ -84,26 +112,40 @@ const DirectoryNode = ({
 
   return (
     <li>
-      <button
-        aria-expanded={open}
-        className="text-muted-foreground hover:bg-sidebar-accent/60 hover:text-sidebar-foreground flex w-full items-center gap-1.5 rounded-md px-2 py-1.5 text-left text-xs transition-colors"
-        onClick={() => {
-          onToggle(key);
-        }}
-        type="button"
-      >
-        <ChevronRightIcon
-          className={`size-3 shrink-0 transition-transform ${
-            open ? "rotate-90" : ""
-          }`}
-        />
-        {open ? (
-          <FolderOpenIcon className="size-3.5 shrink-0 opacity-60" />
-        ) : (
-          <FolderIcon className="size-3.5 shrink-0 opacity-60" />
-        )}
-        <span className="truncate">{directory.name}</span>
-      </button>
+      <ContextMenu>
+        <ContextMenuTrigger className="block w-full">
+          <button
+            aria-expanded={open}
+            className="text-muted-foreground hover:bg-sidebar-accent/60 hover:text-sidebar-foreground flex w-full items-center gap-1.5 rounded-md px-2 py-1.5 text-left text-xs transition-colors"
+            onClick={() => {
+              onToggle(key);
+            }}
+            type="button"
+          >
+            <ChevronRightIcon
+              className={`size-3 shrink-0 transition-transform ${
+                open ? "rotate-90" : ""
+              }`}
+            />
+            {open ? (
+              <FolderOpenIcon className="size-3.5 shrink-0 opacity-60" />
+            ) : (
+              <FolderIcon className="size-3.5 shrink-0 opacity-60" />
+            )}
+            <span className="truncate">{directory.name}</span>
+          </button>
+        </ContextMenuTrigger>
+        <ContextMenuContent>
+          <ContextMenuItem
+            onClick={() => {
+              onRevealFolder(directoryPath(folderPath, directory.relativePath));
+            }}
+          >
+            <FolderOpenIcon />
+            在文件资源管理器中打开
+          </ContextMenuItem>
+        </ContextMenuContent>
+      </ContextMenu>
       {open ? (
         <ul className="border-border/60 ml-3 space-y-0.5 border-l pl-1">
           {directory.directories.map((child) => (
@@ -115,6 +157,8 @@ const DirectoryNode = ({
               folderPath={folderPath}
               key={child.relativePath}
               onOpen={onOpen}
+              onRevealFile={onRevealFile}
+              onRevealFolder={onRevealFolder}
               onToggle={onToggle}
             />
           ))}
@@ -124,6 +168,7 @@ const DirectoryNode = ({
               file={file}
               key={file.path}
               onOpen={onOpen}
+              onReveal={onRevealFile}
             />
           ))}
         </ul>
@@ -140,6 +185,8 @@ interface FolderRootProps {
   onOpen: (path: string) => void;
   onRefresh: (folderPath: string) => void;
   onRemove: (folderPath: string) => void;
+  onRevealFile: (path: string) => void;
+  onRevealFolder: (path: string) => void;
   onToggle: (key: string) => void;
 }
 
@@ -151,6 +198,8 @@ const FolderRoot = ({
   onOpen,
   onRefresh,
   onRemove,
+  onRevealFile,
+  onRevealFolder,
   onToggle,
 }: FolderRootProps) => {
   const key = rootKey(folder.path);
@@ -175,6 +224,8 @@ const FolderRoot = ({
               folderPath={folder.path}
               key={directory.relativePath}
               onOpen={onOpen}
+              onRevealFile={onRevealFile}
+              onRevealFolder={onRevealFolder}
               onToggle={onToggle}
             />
           ))}
@@ -184,6 +235,7 @@ const FolderRoot = ({
               file={file}
               key={file.path}
               onOpen={onOpen}
+              onReveal={onRevealFile}
             />
           ))}
         </ul>
@@ -193,27 +245,41 @@ const FolderRoot = ({
   return (
     <section className="space-y-0.5">
       <div className="hover:bg-sidebar-accent/40 flex items-center gap-0.5 rounded-md pr-0.5">
-        <button
-          aria-expanded={open}
-          className="text-sidebar-foreground flex min-w-0 flex-1 items-center gap-1.5 rounded-md px-2 py-1.5 text-left text-xs font-medium transition-colors"
-          onClick={() => {
-            onToggle(key);
-          }}
-          title={folder.path}
-          type="button"
-        >
-          <ChevronRightIcon
-            className={`size-3 shrink-0 transition-transform ${
-              open ? "rotate-90" : ""
-            }`}
-          />
-          {open ? (
-            <FolderOpenIcon className="text-primary size-3.5 shrink-0" />
-          ) : (
-            <FolderIcon className="text-primary size-3.5 shrink-0" />
-          )}
-          <span className="truncate">{folder.name}</span>
-        </button>
+        <ContextMenu>
+          <ContextMenuTrigger className="flex min-w-0 flex-1 items-center">
+            <button
+              aria-expanded={open}
+              className="text-sidebar-foreground flex min-w-0 flex-1 items-center gap-1.5 rounded-md px-2 py-1.5 text-left text-xs font-medium transition-colors"
+              onClick={() => {
+                onToggle(key);
+              }}
+              title={folder.path}
+              type="button"
+            >
+              <ChevronRightIcon
+                className={`size-3 shrink-0 transition-transform ${
+                  open ? "rotate-90" : ""
+                }`}
+              />
+              {open ? (
+                <FolderOpenIcon className="text-primary size-3.5 shrink-0" />
+              ) : (
+                <FolderIcon className="text-primary size-3.5 shrink-0" />
+              )}
+              <span className="truncate">{folder.name}</span>
+            </button>
+          </ContextMenuTrigger>
+          <ContextMenuContent>
+            <ContextMenuItem
+              onClick={() => {
+                onRevealFolder(folder.path);
+              }}
+            >
+              <FolderOpenIcon />
+              在文件资源管理器中打开
+            </ContextMenuItem>
+          </ContextMenuContent>
+        </ContextMenu>
         <Button
           aria-label={`刷新 ${folder.name}`}
           onClick={() => {
@@ -256,6 +322,8 @@ export const FileTree = ({
   onOpen,
   onRefresh,
   onRemove,
+  onRevealFile,
+  onRevealFolder,
   onToggle,
 }: FileTreeProps) => {
   const activeKeys = useMemo(() => {
@@ -287,6 +355,8 @@ export const FileTree = ({
             onOpen={onOpen}
             onRefresh={onRefresh}
             onRemove={onRemove}
+            onRevealFile={onRevealFile}
+            onRevealFolder={onRevealFolder}
             onToggle={onToggle}
           />
         ))}

@@ -1,7 +1,12 @@
 import { useDeferredValue, useMemo } from "react";
 
 import { useEditorCursor } from "#src/lib/editor-cursor.ts";
-import { countLines, countWords } from "#src/lib/markdown-stats.ts";
+import {
+  countCharacters,
+  countLines,
+  countWords,
+} from "#src/lib/markdown-stats.ts";
+import { useSelectionCount } from "#src/lib/use-selection-count.ts";
 
 const timeFormat = new Intl.DateTimeFormat("zh-CN", {
   hour: "2-digit",
@@ -57,11 +62,12 @@ export const StatusBar = ({
   saving,
 }: StatusBarProps) => {
   const cursor = useEditorCursor();
+  const selected = useSelectionCount();
   // The counts trail the text: a keystroke must not wait for a scan of the
   // whole document.
   const counted = useDeferredValue(content);
   const words = useMemo(() => countWords(counted), [counted]);
-  const characters = counted.length;
+  const characters = countCharacters(counted);
   const lines = useMemo(() => countLines(counted), [counted]);
 
   return (
@@ -75,9 +81,7 @@ export const StatusBar = ({
         <span title="光标位置">
           {cursor.line}:{cursor.column}
         </span>
-        {cursor.selectedWords > 0 ? (
-          <span>选中 {cursor.selectedWords} 字</span>
-        ) : null}
+        {selected > 0 ? <span>选中 {selected} 字符</span> : null}
         <span>{words} 字</span>
         <span className="hidden sm:inline">{characters} 字符</span>
         <span>{lines} 行</span>

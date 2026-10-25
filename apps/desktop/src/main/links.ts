@@ -58,6 +58,18 @@ export const parseMarkdownHref = (href: string): ParsedMarkdownHref | null => {
   }
 };
 
+/** Whether `target` is the folder `root` itself or lives inside it. */
+export const isPathWithin = (root: string, target: string) => {
+  const relative = path.relative(path.resolve(root), path.resolve(target));
+
+  return (
+    relative === "" ||
+    (relative !== ".." &&
+      !relative.startsWith(`..${path.sep}`) &&
+      !path.isAbsolute(relative))
+  );
+};
+
 export const isPathInside = (root: string, target: string) => {
   const relative = path.relative(root, target);
 

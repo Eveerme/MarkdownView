@@ -41,6 +41,7 @@ describe("settings", () => {
       lineNumbers: true,
       previewFontSize: 21,
       readingWidth: 64,
+      recentFilesLimit: 25,
       splitRatio: 0.4,
       syncScroll: false,
       wordWrap: false,
@@ -56,11 +57,13 @@ describe("settings", () => {
     const { storage } = memoryStorage({
       "markdownview:editor-font-size": "96",
       "markdownview:preview-width": "12",
+      "markdownview:recent-files-limit": "999",
       "markdownview:split-ratio": "0.9",
     });
 
     expect(readSettings(storage).editorFontSize).toBe(20);
     expect(readSettings(storage).readingWidth).toBe(56);
+    expect(readSettings(storage).recentFilesLimit).toBe(50);
     expect(readSettings(storage).splitRatio).toBe(0.72);
   });
 

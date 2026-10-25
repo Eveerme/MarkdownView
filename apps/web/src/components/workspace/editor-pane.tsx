@@ -8,7 +8,6 @@ import { useEffect, useMemo, useRef } from "react";
 import type { ClipboardEvent, DragEvent } from "react";
 
 import { publishCursor } from "#src/lib/editor-cursor.ts";
-import { countWords } from "#src/lib/markdown-stats.ts";
 
 const markdownHighlight = HighlightStyle.define([
   {
@@ -42,14 +41,9 @@ const extensions = [
     const selection = update.state.selection.main;
     const line = update.state.doc.lineAt(selection.head);
 
-    const selected = selection.empty
-      ? 0
-      : countWords(update.state.sliceDoc(selection.from, selection.to));
-
     publishCursor({
       column: selection.head - line.from + 1,
       line: line.number,
-      selectedWords: selected,
     });
   }),
 ];

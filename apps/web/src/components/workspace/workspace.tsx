@@ -12,7 +12,6 @@ import { ConfirmDialog } from "#src/components/workspace/confirm-dialog.tsx";
 import { EditorPane } from "#src/components/workspace/editor-pane.tsx";
 import { FileSidebar } from "#src/components/workspace/file-sidebar.tsx";
 import { PreviewPane } from "#src/components/workspace/preview-pane.tsx";
-import { SelectionCount } from "#src/components/workspace/selection-count.tsx";
 import { StatusBar } from "#src/components/workspace/status-bar.tsx";
 import { Toolbar } from "#src/components/workspace/toolbar.tsx";
 import { useActiveOutline } from "#src/lib/use-active-outline.ts";
@@ -213,6 +212,12 @@ export const Workspace = () => {
             onReveal={(item) => {
               workspace.actions.revealOutline(item);
             }}
+            onRevealFile={(path) => {
+              void workspace.actions.revealFile(path);
+            }}
+            onRevealFolder={(path) => {
+              void workspace.actions.revealFolder(path);
+            }}
             onToggleFolder={(key) => {
               workspace.actions.toggleFolder(key);
             }}
@@ -302,8 +307,6 @@ export const Workspace = () => {
         savedAt={workspace.savedAt}
         saving={workspace.saving}
       />
-
-      <SelectionCount />
 
       <ConfirmDialog
         message={workspace.confirmation.message}

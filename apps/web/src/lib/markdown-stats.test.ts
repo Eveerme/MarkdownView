@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vite-plus/test";
 
-import { countLines, countWords } from "#src/lib/markdown-stats.ts";
+import {
+  countCharacters,
+  countLines,
+  countWords,
+} from "#src/lib/markdown-stats.ts";
 
 describe("word count", () => {
   it("counts an empty document as zero", () => {
@@ -20,6 +24,15 @@ describe("word count", () => {
 
   it("counts a mixed document", () => {
     expect(countWords("React 19 桌面版 markdown-view")).toBe(7);
+  });
+});
+
+describe("character count", () => {
+  it("counts Chinese, English, punctuation and spaces", () => {
+    expect(countCharacters("")).toBe(0);
+    expect(countCharacters("Hello, 世界!")).toBe(10);
+    expect(countCharacters("—— …。！")).toBe(6);
+    expect(countCharacters("a\nb")).toBe(3);
   });
 });
 

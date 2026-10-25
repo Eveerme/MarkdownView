@@ -6,6 +6,9 @@ export const desktopBridgeGlobal = "desktop";
 export const rendererHost = "app.localhost";
 export const rendererOrigin = `https://${rendererHost}`;
 
+/** How many entries the recent store keeps; the settings range stops here. */
+export const recentFilesCapacity = 50;
+
 export const desktopChannels = {
   versions: "desktop:versions",
   openFile: "desktop:file:open",
@@ -16,6 +19,8 @@ export const desktopChannels = {
   closeFolder: "desktop:folder:close",
   refreshFolder: "desktop:folder:refresh",
   readFile: "desktop:file:read",
+  revealFile: "desktop:file:reveal",
+  revealFolder: "desktop:folder:reveal",
   resolveLink: "desktop:file:resolve-link",
   saveFile: "desktop:file:save",
   saveFileAs: "desktop:file:save-as",
@@ -153,6 +158,8 @@ export interface DesktopApi {
   closeFolder: (path: string) => Promise<void>;
   refreshFolder: (path: string) => Promise<MarkdownFolder>;
   readFile: (path: string) => Promise<MarkdownDocument>;
+  revealFile: (path: string) => Promise<void>;
+  revealFolder: (path: string) => Promise<void>;
   resolveLink: (request: ResolveLinkRequest) => Promise<ResolvedLink | null>;
   saveFile: (request: SaveFileRequest) => Promise<MarkdownSavedFile>;
   saveFileAs: (request: SaveFileAsRequest) => Promise<MarkdownSavedFile | null>;

@@ -4,6 +4,8 @@ import path from "node:path";
 
 import { afterAll, describe, expect, it } from "vite-plus/test";
 
+import { recentFilesCapacity } from "@markdownview/electron";
+
 import { createRecentFilesStore } from "#src/main/recent-files.ts";
 
 describe("the recent files store", () => {
@@ -66,10 +68,10 @@ describe("the recent files store", () => {
     ]);
   });
 
-  it("keeps at most ten files", async () => {
+  it("keeps at most the configured capacity", async () => {
     const { fileFor, store } = makeStore();
 
-    const files = Array.from({ length: 12 }, (_, index) =>
+    const files = Array.from({ length: recentFilesCapacity + 2 }, (_, index) =>
       fileFor(`note-${index}.md`)
     );
 
@@ -81,8 +83,8 @@ describe("the recent files store", () => {
 
     const listed = await store.list();
 
-    expect(listed).toHaveLength(10);
-    expect(listed[0]?.path).toBe(files[11]);
+    expect(listed).toHaveLength(recentFilesCapacity);
+    expect(listed[0]?.path).toBe(files.at(-1));
     expect(listed.at(-1)?.path).toBe(files[2]);
   });
 

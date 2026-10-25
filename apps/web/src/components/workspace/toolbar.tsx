@@ -26,7 +26,6 @@ import {
 } from "@markdownview/ui/components/dropdown-menu";
 
 import { AboutDialog } from "#src/components/about-dialog.tsx";
-import { ModeToggle } from "#src/components/mode-toggle.tsx";
 import { SettingsDialog } from "#src/components/workspace/settings-dialog.tsx";
 import type { ViewMode } from "#src/lib/use-workspace.ts";
 
@@ -191,7 +190,6 @@ export const Toolbar = ({
 
       <SettingsDialog />
       <AboutDialog />
-      <ModeToggle />
     </div>
   </header>
 );

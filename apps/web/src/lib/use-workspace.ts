@@ -288,13 +288,33 @@ export const useWorkspace = () => {
     }
   };
 
-  const openPathFromDisk = async (path: string): Promise<boolean> => {
-    if (!bridge || path === filePath) {
+  const showOutline = () => {
+    setSidebarOpen(true);
+    setSidebarView("outline");
+  };
+
+  const openPathFromDisk = async (
+    path: string,
+    options?: { outline: boolean }
+  ): Promise<boolean> => {
+    if (!bridge) {
+      return false;
+    }
+
+    if (path === filePath) {
+      if (options?.outline === true) {
+        showOutline();
+      }
+
       return false;
     }
 
     try {
       loadDocument(await bridge.readFile(path));
+
+      if (options?.outline === true) {
+        showOutline();
+      }
 
       return true;
     } catch (error) {
@@ -565,6 +585,34 @@ export const useWorkspace = () => {
     });
   };
 
+  const revealFile = async (path: string) => {
+    if (!bridge) {
+      return;
+    }
+
+    try {
+      await bridge.revealFile(path);
+    } catch (error) {
+      if (error instanceof Error) {
+        report("打开文件位置失败", error);
+      }
+    }
+  };
+
+  const revealFolder = async (folderPath: string) => {
+    if (!bridge) {
+      return;
+    }
+
+    try {
+      await bridge.revealFolder(folderPath);
+    } catch (error) {
+      if (error instanceof Error) {
+        report("打开文件夹失败", error);
+      }
+    }
+  };
+
   const refreshFolder = (folderPath: string) => {
     void refreshFolderFromDisk(folderPath);
   };
@@ -594,7 +642,7 @@ export const useWorkspace = () => {
 
       if (request !== null) {
         guard(() => {
-          void openPathFromDisk(request.path);
+          void openPathFromDisk(request.path, { outline: true });
         });
       }
     } catch (error) {
@@ -669,7 +717,9 @@ export const useWorkspace = () => {
         });
 
         if (restored.length > 0) {
-          setSidebarView("files");
+          setSidebarView((current) =>
+            current === "recent" ? "files" : current
+          );
         }
       } catch {
         // Persisted folders are a convenience; the app opens without them.
@@ -805,6 +855,8 @@ export const useWorkspace = () => {
       openPath,
       refreshFolder,
       removeFolder,
+      revealFile,
+      revealFolder,
       revealOutline,
       save,
       saveAs,
@@ -827,7 +879,7 @@ export const useWorkspace = () => {
     mode,
     outline,
     previewAnchor,
-    recentFiles,
+    recentFiles: recentFiles.slice(0, settings.recentFilesLimit),
     savedAt,
     saving,
     setContent,

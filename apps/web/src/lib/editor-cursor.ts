@@ -3,10 +3,9 @@ import { useSyncExternalStore } from "react";
 export interface EditorCursor {
   column: number;
   line: number;
-  selectedWords: number;
 }
 
-const initialCursor: EditorCursor = { column: 1, line: 1, selectedWords: 0 };
+const initialCursor: EditorCursor = { column: 1, line: 1 };
 
 /**
  * The caret is read by the status bar alone. Keeping it outside React state
@@ -28,11 +27,7 @@ const subscribe = (listener: () => void) => {
 const getSnapshot = () => cursor;
 
 export const publishCursor = (next: EditorCursor) => {
-  if (
-    next.column === cursor.column &&
-    next.line === cursor.line &&
-    next.selectedWords === cursor.selectedWords
-  ) {
+  if (next.column === cursor.column && next.line === cursor.line) {
     return;
   }
 

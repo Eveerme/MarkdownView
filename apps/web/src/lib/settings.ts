@@ -1,9 +1,12 @@
+import { recentFilesCapacity } from "@markdownview/electron";
+
 export interface AppSettings {
   autoSave: boolean;
   editorFontSize: number;
   lineNumbers: boolean;
   previewFontSize: number;
   readingWidth: number;
+  recentFilesLimit: number;
   splitRatio: number;
   syncScroll: boolean;
   wordWrap: boolean;
@@ -25,6 +28,7 @@ const settingKeys = {
   previewFontSize: `${prefix}preview-font-size`,
   // The width now sizes both panes; the key keeps its 0.3.2 name so stored preferences survive.
   readingWidth: `${prefix}preview-width`,
+  recentFilesLimit: `${prefix}recent-files-limit`,
   splitRatio: `${prefix}split-ratio`,
   syncScroll: `${prefix}sync-scroll`,
   wordWrap: `${prefix}word-wrap`,
@@ -34,6 +38,7 @@ export const settingsRanges = {
   editorFontSize: { max: 20, min: 12 },
   previewFontSize: { max: 24, min: 14 },
   readingWidth: { max: 96, min: 56 },
+  recentFilesLimit: { max: recentFilesCapacity, min: 5 },
   splitRatio: { max: 0.72, min: 0.28 },
 } as const satisfies Record<string, NumericRange>;
 
@@ -43,6 +48,7 @@ export const defaultSettings: AppSettings = {
   lineNumbers: false,
   previewFontSize: 17,
   readingWidth: 76,
+  recentFilesLimit: 10,
   splitRatio: 0.5,
   syncScroll: true,
   wordWrap: true,
@@ -123,6 +129,12 @@ export const readSettings = (
         defaultSettings.readingWidth,
         settingsRanges.readingWidth
       ),
+      recentFilesLimit: readNumber(
+        storage,
+        settingKeys.recentFilesLimit,
+        defaultSettings.recentFilesLimit,
+        settingsRanges.recentFilesLimit
+      ),
       splitRatio: readNumber(
         storage,
         settingKeys.splitRatio,
@@ -165,6 +177,10 @@ export const writeSettings = (
       String(settings.previewFontSize)
     );
     storage.setItem(settingKeys.readingWidth, String(settings.readingWidth));
+    storage.setItem(
+      settingKeys.recentFilesLimit,
+      String(settings.recentFilesLimit)
+    );
     storage.setItem(settingKeys.splitRatio, String(settings.splitRatio));
     storage.setItem(settingKeys.syncScroll, String(settings.syncScroll));
     storage.setItem(settingKeys.wordWrap, String(settings.wordWrap));
@@ -191,6 +207,10 @@ export const normalizeSettings = (settings: AppSettings): AppSettings => ({
   readingWidth: Math.min(
     settingsRanges.readingWidth.max,
     Math.max(settingsRanges.readingWidth.min, settings.readingWidth)
+  ),
+  recentFilesLimit: Math.min(
+    settingsRanges.recentFilesLimit.max,
+    Math.max(settingsRanges.recentFilesLimit.min, settings.recentFilesLimit)
   ),
   splitRatio: Math.min(
     settingsRanges.splitRatio.max,

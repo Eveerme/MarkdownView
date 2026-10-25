@@ -22,6 +22,7 @@ import type {
 import {
   desktopBridgeGlobal,
   desktopChannels,
+  filePathSchema,
   markdownDocumentSchema,
   markdownFolderSchema,
   markdownOpenRequestSchema,
@@ -133,6 +134,22 @@ const desktop = {
     );
 
     return document;
+  },
+
+  revealFile: async (path: string): Promise<void> => {
+    await invoke(
+      desktopChannels.revealFile,
+      z.null(),
+      filePathSchema.parse(path)
+    );
+  },
+
+  revealFolder: async (path: string): Promise<void> => {
+    await invoke(
+      desktopChannels.revealFolder,
+      z.null(),
+      filePathSchema.parse(path)
+    );
   },
 
   resolveLink: async (

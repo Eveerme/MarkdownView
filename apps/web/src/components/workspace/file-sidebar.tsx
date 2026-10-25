@@ -30,6 +30,8 @@ interface FileSidebarProps {
   onRefresh: (folderPath: string) => void;
   onRemove: (folderPath: string) => void;
   onReveal: (item: OutlineItem) => void;
+  onRevealFile: (path: string) => void;
+  onRevealFolder: (path: string) => void;
   onToggleFolder: (key: string) => void;
   onViewChange: (view: SidebarView) => void;
 }
@@ -73,6 +75,8 @@ export const FileSidebar = ({
   onRefresh,
   onRemove,
   onReveal,
+  onRevealFile,
+  onRevealFolder,
   onToggleFolder,
   onViewChange,
 }: FileSidebarProps) => {
@@ -86,6 +90,7 @@ export const FileSidebar = ({
         onClear={onClearRecent}
         onOpen={onOpen}
         onOpenFile={onOpenFile}
+        onReveal={onRevealFile}
       />
     );
   } else if (view === "outline") {
@@ -107,6 +112,8 @@ export const FileSidebar = ({
         onOpen={onOpen}
         onRefresh={onRefresh}
         onRemove={onRemove}
+        onRevealFile={onRevealFile}
+        onRevealFolder={onRevealFolder}
         onToggle={onToggleFolder}
       />
     );

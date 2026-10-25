@@ -3,9 +3,8 @@ import path from "node:path";
 
 import { z } from "zod";
 
+import { recentFilesCapacity } from "@markdownview/electron";
 import type { RecentFile } from "@markdownview/electron";
-
-const limit = 10;
 
 const storedEntrySchema = z.object({
   name: z.string().min(1),
@@ -121,7 +120,7 @@ export const createRecentFilesStore = (
         const next = [
           { name: path.basename(absolute), openedAt: now(), path: absolute },
           ...entries.filter((entry) => entry.path !== absolute),
-        ].slice(0, limit);
+        ].slice(0, recentFilesCapacity);
 
         await writeStored(historyFile, next);
       });

@@ -1,4 +1,10 @@
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import {
+  mkdirSync,
+  mkdtempSync,
+  realpathSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 
@@ -14,7 +20,10 @@ const asUrl = (from: string, src: string) =>
   `https://asset/?from=${encodeURIComponent(from)}&src=${encodeURIComponent(src)}`;
 
 describe("local note images", () => {
-  const root = mkdtempSync(path.join(tmpdir(), "markdownview-images-"));
+  // Windows can hand back an 8.3 short temp path; the resolver returns real paths.
+  const root = realpathSync.native(
+    mkdtempSync(path.join(tmpdir(), "markdownview-images-"))
+  );
 
   mkdirSync(path.join(root, "notes", "assets"), { recursive: true });
   mkdirSync(path.join(root, "outside"), { recursive: true });

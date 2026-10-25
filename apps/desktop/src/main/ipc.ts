@@ -1,6 +1,6 @@
 import path from "node:path";
 
-import { app, BrowserWindow, dialog, ipcMain } from "electron";
+import { app, BrowserWindow, dialog, ipcMain, shell } from "electron";
 import type { IpcMainInvokeEvent, OpenDialogOptions } from "electron";
 
 import {
@@ -37,7 +37,7 @@ import {
   writeStoredFolders,
 } from "#src/main/folder-store.ts";
 import { createImageProtocolHandler } from "#src/main/image-protocol.ts";
-import { resolveMarkdownLink } from "#src/main/links.ts";
+import { isPathWithin, resolveMarkdownLink } from "#src/main/links.ts";
 import { createRecentFilesStore } from "#src/main/recent-files.ts";
 import { isTrustedUrl } from "#src/main/renderer-route.ts";
 
@@ -139,6 +139,17 @@ export const setupIpc = (devOrigin: string | null): DesktopIpc => {
     }
 
     openedFiles.add(absolute);
+
+    return absolute;
+  };
+
+  const assertFolderInWorkspace = async (folderPath: string) => {
+    const absolute = path.resolve(folderPath);
+    const roots = [...openedFolders, ...(await folderPaths())];
+
+    if (!roots.some((root) => isPathWithin(root, absolute))) {
+      throw new Error("The folder is not part of an opened workspace");
+    }
 
     return absolute;
   };
@@ -313,6 +324,33 @@ export const setupIpc = (devOrigin: string | null): DesktopIpc => {
 
     return document;
   });
+
+  ipcMain.handle(desktopChannels.revealFile, async (event, payload: string) => {
+    assertTrusted(event);
+
+    shell.showItemInFolder(await assertAllowed(filePathSchema.parse(payload)));
+
+    return null;
+  });
+
+  ipcMain.handle(
+    desktopChannels.revealFolder,
+    async (event, payload: string) => {
+      assertTrusted(event);
+
+      const folderPath = await assertFolderInWorkspace(
+        filePathSchema.parse(payload)
+      );
+
+      const error = await shell.openPath(folderPath);
+
+      if (error !== "") {
+        throw new Error(error);
+      }
+
+      return null;
+    }
+  );
 
   ipcMain.handle(
     desktopChannels.resolveLink,

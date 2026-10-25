@@ -13,11 +13,11 @@ export const themeOptions: readonly {
   label: string;
   value: AppTheme | "system";
 }[] = [
-  { label: "Light", value: "light" },
-  { label: "Sepia", value: "sepia" },
-  { label: "Forest", value: "forest" },
-  { label: "Pure white", value: "white" },
-  { label: "Dark", value: "dark" },
-  { label: "Midnight", value: "midnight" },
-  { label: "System", value: "system" },
+  { label: "纸白", value: "light" },
+  { label: "羊皮纸", value: "sepia" },
+  { label: "松林", value: "forest" },
+  { label: "纯白", value: "white" },
+  { label: "墨夜", value: "dark" },
+  { label: "午夜蓝", value: "midnight" },
+  { label: "跟随系统", value: "system" },
 ];

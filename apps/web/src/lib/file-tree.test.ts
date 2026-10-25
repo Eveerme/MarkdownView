@@ -2,7 +2,11 @@ import { describe, expect, it } from "vite-plus/test";
 
 import type { MarkdownFile } from "@markdownview/electron";
 
-import { buildFileTree, expandedKeysForFile } from "#src/lib/file-tree.ts";
+import {
+  buildFileTree,
+  directoryPath,
+  expandedKeysForFile,
+} from "#src/lib/file-tree.ts";
 
 const file = (relativePath: string): MarkdownFile => ({
   name: relativePath.split("/").at(-1) ?? relativePath,
@@ -40,5 +44,10 @@ describe("the file tree", () => {
     expect(
       expandedKeysForFile("C:/notes", "notes/deep/nested.md")
     ).toStrictEqual(["C:/notes\0", "C:/notes\0notes", "C:/notes\0notes/deep"]);
+  });
+
+  it("builds the absolute path of a tree folder", () => {
+    expect(directoryPath("C:/notes", "")).toBe("C:/notes");
+    expect(directoryPath("C:/notes", "notes/deep")).toBe("C:/notes/notes/deep");
   });
 });

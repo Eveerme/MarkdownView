@@ -366,6 +366,37 @@
   background-image: linear-gradient(135deg, #faf5ec 50%, #23201c 50%);
 }
 
+/* Dialogs can outgrow the window; a thin themed bar replaces the wide native one. */
+@utility subtle-scrollbar {
+  scrollbar-gutter: stable;
+
+  &::-webkit-scrollbar {
+    height: 6px;
+    width: 6px;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background-color: color-mix(
+      in oklch,
+      var(--muted-foreground) 28%,
+      transparent
+    );
+    border-radius: 999px;
+  }
+
+  &::-webkit-scrollbar-thumb:hover {
+    background-color: color-mix(
+      in oklch,
+      var(--muted-foreground) 46%,
+      transparent
+    );
+  }
+}
+
 /* Writing surfaces */
 
 .split-panes {

@@ -1,4 +1,5 @@
 import { Settings2Icon } from "lucide-react";
+import { useTheme } from "next-themes";
 import { useEffect, useState } from "react";
 import type { ReactNode } from "react";
 
@@ -15,6 +16,7 @@ import { Slider } from "@markdownview/ui/components/slider";
 import { Switch } from "@markdownview/ui/components/switch";
 
 import { settingsRanges } from "#src/lib/settings.ts";
+import { themeOptions } from "#src/lib/themes.ts";
 import { useSettings } from "#src/lib/use-settings.tsx";
 
 const Section = ({
@@ -107,6 +109,41 @@ const SliderRow = ({
   </div>
 );
 
+const ThemeSection = () => {
+  const { theme, setTheme } = useTheme();
+
+  return (
+    <div className="grid grid-cols-2 gap-1.5 py-2 sm:grid-cols-3">
+      {themeOptions.map(({ label, value }) => {
+        const active = theme === value;
+
+        return (
+          <button
+            aria-pressed={active}
+            className={`flex items-center gap-2 rounded-md border px-2 py-1.5 text-left text-xs transition-colors ${
+              active
+                ? "border-primary/40 bg-accent text-accent-foreground"
+                : "border-border text-muted-foreground hover:bg-accent/50 hover:text-foreground"
+            }`}
+            key={value}
+            onClick={() => {
+              setTheme(value);
+            }}
+            type="button"
+          >
+            <span
+              aria-hidden="true"
+              className="border-border size-3.5 shrink-0 rounded-full border"
+              data-swatch={value}
+            />
+            {label}
+          </button>
+        );
+      })}
+    </div>
+  );
+};
+
 export const SettingsDialog = () => {
   const { settings, update } = useSettings();
   const [open, setOpen] = useState(false);
@@ -133,6 +170,7 @@ export const SettingsDialog = () => {
   const editorSize = settingsRanges.editorFontSize;
   const previewSize = settingsRanges.previewFontSize;
   const measure = settingsRanges.readingWidth;
+  const recentLimit = settingsRanges.recentFilesLimit;
 
   return (
     <Dialog onOpenChange={setOpen} open={open}>
@@ -148,13 +186,20 @@ export const SettingsDialog = () => {
       >
         <Settings2Icon />
       </DialogTrigger>
-      <DialogContent className="max-h-[85svh] overflow-y-auto sm:max-w-lg">
+      <DialogContent
+        className="max-h-[85svh] overflow-y-auto sm:max-w-lg"
+        scrollbar="subtle"
+      >
         <DialogHeader>
           <DialogTitle>设置</DialogTitle>
           <DialogDescription>偏好保存在本机，改动立即生效。</DialogDescription>
         </DialogHeader>
 
         <div>
+          <Section title="外观">
+            <ThemeSection />
+          </Section>
+
           <Section title="编辑">
             <ToggleRow
               description="在源码左侧显示行号。"
@@ -229,6 +274,17 @@ export const SettingsDialog = () => {
                 update({ autoSave });
               }}
               value={settings.autoSave}
+            />
+            <SliderRow
+              description={`最近列表显示的文件数。历史最多保留 ${recentLimit.max} 条。`}
+              label="最近文件数量"
+              max={recentLimit.max}
+              min={recentLimit.min}
+              onChange={(recentFilesLimit) => {
+                update({ recentFilesLimit });
+              }}
+              suffix=" 条"
+              value={settings.recentFilesLimit}
             />
           </Section>
         </div>

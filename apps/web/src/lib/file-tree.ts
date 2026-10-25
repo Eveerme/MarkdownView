@@ -77,6 +77,10 @@ export const rootKey = (folderPath: string) => `${folderPath}\0`;
 export const directoryKey = (folderPath: string, relativePath: string) =>
   `${rootKey(folderPath)}${relativePath}`;
 
+/** The absolute folder path a tree row stands for; the main process resolves it. */
+export const directoryPath = (folderPath: string, relativePath: string) =>
+  relativePath === "" ? folderPath : `${folderPath}/${relativePath}`;
+
 /** The root and every folder that has to be open to reveal the file. */
 export const expandedKeysForFile = (
   folderPath: string,

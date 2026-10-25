@@ -1,8 +1,19 @@
-import { FilePlusIcon, FileTextIcon, Trash2Icon } from "lucide-react";
+import {
+  FilePlusIcon,
+  FileTextIcon,
+  FolderOpenIcon,
+  Trash2Icon,
+} from "lucide-react";
 import { useEffect, useState } from "react";
 
 import type { RecentFile } from "@markdownview/electron";
 import { Button } from "@markdownview/ui/components/button";
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuTrigger,
+} from "@markdownview/ui/components/context-menu";
 
 import {
   formatRecentTime,
@@ -15,6 +26,7 @@ interface RecentListProps {
   onClear: () => void;
   onOpen: (path: string) => void;
   onOpenFile: () => void;
+  onReveal: (path: string) => void;
 }
 
 const emptyRecent = (onOpenFile: () => void) => (
@@ -40,6 +52,7 @@ export const RecentList = ({
   onClear,
   onOpen,
   onOpenFile,
+  onReveal,
 }: RecentListProps) => {
   const [now, setNow] = useState(() => Date.now());
 
@@ -67,40 +80,56 @@ export const RecentList = ({
 
           return (
             <li key={file.path}>
-              <button
-                className={`group flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left transition-colors ${
-                  active
-                    ? "bg-sidebar-accent text-sidebar-accent-foreground"
-                    : "text-muted-foreground hover:bg-sidebar-accent/60 hover:text-sidebar-foreground"
-                }`}
-                onClick={() => {
-                  onOpen(file.path);
-                }}
-                title={file.path}
-                type="button"
-              >
-                <FileTextIcon
-                  className={`size-3.5 shrink-0 ${
-                    active ? "text-primary" : "opacity-50"
-                  }`}
-                />
-                <span className="min-w-0 flex-1">
-                  <span className="block truncate text-xs">{file.name}</span>
-                  <span className="flex items-baseline gap-2 text-xs opacity-60">
-                    <span className="min-w-0 flex-1 truncate">
-                      {file.directory}
-                    </span>
-                    {time === null ? null : (
-                      <span
-                        className="shrink-0 tabular-nums"
-                        title={timestamp ?? undefined}
-                      >
-                        {time}
+              <ContextMenu>
+                <ContextMenuTrigger className="block w-full">
+                  <button
+                    className={`group flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left transition-colors ${
+                      active
+                        ? "bg-sidebar-accent text-sidebar-accent-foreground"
+                        : "text-muted-foreground hover:bg-sidebar-accent/60 hover:text-sidebar-foreground"
+                    }`}
+                    onClick={() => {
+                      onOpen(file.path);
+                    }}
+                    title={file.path}
+                    type="button"
+                  >
+                    <FileTextIcon
+                      className={`size-3.5 shrink-0 ${
+                        active ? "text-primary" : "opacity-50"
+                      }`}
+                    />
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-xs">
+                        {file.name}
                       </span>
-                    )}
-                  </span>
-                </span>
-              </button>
+                      <span className="flex items-baseline gap-2 text-xs opacity-60">
+                        <span className="min-w-0 flex-1 truncate">
+                          {file.directory}
+                        </span>
+                        {time === null ? null : (
+                          <span
+                            className="shrink-0 tabular-nums"
+                            title={timestamp ?? undefined}
+                          >
+                            {time}
+                          </span>
+                        )}
+                      </span>
+                    </span>
+                  </button>
+                </ContextMenuTrigger>
+                <ContextMenuContent>
+                  <ContextMenuItem
+                    onClick={() => {
+                      onReveal(file.path);
+                    }}
+                  >
+                    <FolderOpenIcon />
+                    打开文件所在的位置
+                  </ContextMenuItem>
+                </ContextMenuContent>
+              </ContextMenu>
             </li>
           );
         })}

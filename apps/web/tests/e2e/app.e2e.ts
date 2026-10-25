@@ -1,9 +1,23 @@
 import { expect, test } from "@playwright/test";
 import type { Page } from "@playwright/test";
 
+import type {
+  MarkdownDocument,
+  MarkdownFolder,
+  MarkdownOpenRequest,
+  RecentFile,
+} from "@markdownview/electron";
+
 const visit = async (page: Page, path: string) => {
   await page.goto(path, { waitUntil: "networkidle" });
 };
+
+interface DesktopScenario {
+  documents?: Record<string, MarkdownDocument>;
+  folders?: MarkdownFolder[];
+  openRequest?: MarkdownOpenRequest | null;
+  recent?: RecentFile[];
+}
 
 /**
  * The sidebar only exists in the desktop app, whose Electron main process is
@@ -11,31 +25,51 @@ const visit = async (page: Page, path: string) => {
  * desktop-only panels can be exercised in Chromium. They return plain values
  * on purpose: the renderer awaits them either way.
  */
-const stubDesktopBridge = () => {
+const stubDesktopBridge = (scenario: DesktopScenario = {}) => {
+  let pendingOpen = scenario.openRequest ?? null;
+
   Object.defineProperty(window, "desktop", {
     configurable: true,
     value: {
       versions: () => ({ chrome: "1", electron: "1", node: "1" }),
       openFile: () => null,
-      takeOpenRequest: () => null,
+      takeOpenRequest: () => {
+        const request = pendingOpen;
+
+        pendingOpen = null;
+
+        return request;
+      },
       onOpenRequest: () => () => {
         // Nothing subscribes to open requests in this test.
       },
       openFolder: () => null,
-      listFolders: () => [],
+      listFolders: () => scenario.folders ?? [],
       closeFolder: () => {
         // No folder is open in this test.
       },
       refreshFolder: () => {
         throw new Error("no folder is open");
       },
-      readFile: () => {
-        throw new Error("no file is open");
+      readFile: (path: string) => {
+        const document = scenario.documents?.[path];
+
+        if (document === undefined) {
+          throw new Error("no file is open");
+        }
+
+        return document;
+      },
+      revealFile: (path: string) => {
+        localStorage.setItem("markdownview:test:revealed-file", path);
+      },
+      revealFolder: (path: string) => {
+        localStorage.setItem("markdownview:test:revealed-folder", path);
       },
       resolveLink: () => null,
       saveFile: () => ({ name: "note.md", path: "note.md" }),
       saveFileAs: () => null,
-      recentFiles: () => [],
+      recentFiles: () => scenario.recent ?? [],
       clearRecentFiles: () => {
         // The recent list starts empty.
       },
@@ -161,13 +195,19 @@ test("the about dialog shows the version and repository", async ({ page }) => {
   ).toHaveAttribute("href", "https://github.com/Eveerme/MarkdownView");
 });
 
-test("the dark theme survives a reload", async ({ page }) => {
+test("the dark theme chosen in settings survives a reload", async ({
+  page,
+}) => {
   await visit(page, "/");
 
-  await page.getByRole("button", { name: "Toggle theme" }).click();
-  await page.getByRole("menuitemradio", { name: "Dark" }).click();
+  await page.getByRole("button", { name: "设置" }).click();
+
+  const dialog = page.getByRole("dialog");
+
+  await dialog.getByRole("button", { name: "墨夜" }).click();
   await expect(page.locator("html")).toHaveClass(/\bdark\b/u);
 
+  await page.keyboard.press("Escape");
   await page.reload({ waitUntil: "networkidle" });
   await expect(page.locator("html")).toHaveClass(/\bdark\b/u);
 });
@@ -319,8 +359,8 @@ test("a narrow window keeps every pane inside the frame", async ({ page }) => {
 test("the pure white theme clears the paper tint", async ({ page }) => {
   await visit(page, "/");
 
-  await page.getByRole("button", { name: "Toggle theme" }).click();
-  await page.getByRole("menuitemradio", { name: "Pure white" }).click();
+  await page.getByRole("button", { name: "设置" }).click();
+  await page.getByRole("dialog").getByRole("button", { name: "纯白" }).click();
 
   await expect(page.locator("html")).toHaveClass(/\bwhite\b/u);
 
@@ -360,13 +400,28 @@ test("clicking a preview block moves the caret to its source line", async ({
   await expect(page.locator("footer").first()).toContainText("5:1");
 });
 
-test("the status bar counts the selected words", async ({ page }) => {
+test("the status bar counts selected characters in both panes", async ({
+  page,
+}) => {
   await visit(page, "/");
 
   await page.locator(".cm-content").click();
   await page.keyboard.press("Control+A");
+  await page.keyboard.insertText("Hello, 世界!");
 
-  await expect(page.locator("footer").first()).toContainText(/选中 \d+ 字/u);
+  await page.locator(".cm-content").click();
+  await page.keyboard.press("Control+A");
+
+  const footer = page.locator("footer").first();
+
+  await expect(footer).toContainText("选中 10 字符");
+
+  await expect(page.locator(".markdown-body p")).toHaveText("Hello, 世界!");
+  await page.locator(".markdown-body p").selectText();
+  await expect(footer).toContainText("选中 10 字符");
+
+  await page.locator(".cm-content").click();
+  await expect(footer).not.toContainText("选中");
 });
 
 test("double-clicking the divider resets the split", async ({ page }) => {
@@ -451,33 +506,8 @@ test("clicking a preview image opens it at full size", async ({ page }) => {
   await expect(lightbox).toBeHidden();
 });
 
-test("the selected text shows its count beside the selection", async ({
-  page,
-}) => {
-  await visit(page, "/");
-
-  const badge = page.locator("[data-selection-count]");
-
-  await expect(badge).toBeHidden();
-
-  await page.locator(".cm-content").click();
-  await page.keyboard.press("Control+A");
-
-  await expect(badge).toBeVisible();
-  await expect(badge).toHaveText(/^\d+ 字$/u);
-
-  await page.locator(".markdown-body p").first().selectText();
-
-  await expect(badge).toBeVisible();
-  await expect(badge).toHaveText(/^\d+ 字$/u);
-
-  await page.locator(".cm-content").click();
-
-  await expect(badge).toBeHidden();
-});
-
 test("the outline follows the section being read", async ({ page }) => {
-  await page.addInitScript(stubDesktopBridge);
+  await page.addInitScript(stubDesktopBridge, {});
   await visit(page, "/");
 
   await page.locator(".cm-content").click();
@@ -513,4 +543,136 @@ test("the outline follows the section being read", async ({ page }) => {
         await page.locator("aside nav").evaluate((element) => element.scrollTop)
     )
     .toBeGreaterThan(0);
+});
+
+test("the recent list shows the configured number of files", async ({
+  page,
+}) => {
+  const recent = Array.from({ length: 12 }, (_, index) => ({
+    directory: "C:\\notes",
+    name: `note-${index}.md`,
+    openedAt: index,
+    path: `C:\\notes\\note-${index}.md`,
+  }));
+
+  await page.addInitScript(stubDesktopBridge, { recent });
+  await page.addInitScript(() => {
+    localStorage.setItem("markdownview:recent-files-limit", "5");
+  });
+  await visit(page, "/");
+
+  await expect(page.locator("aside nav li")).toHaveCount(5);
+});
+
+test("a file opened from the desktop switches the sidebar to the outline", async ({
+  page,
+}) => {
+  const path = "C:\\notes\\external.md";
+
+  await page.addInitScript(stubDesktopBridge, {
+    documents: {
+      [path]: { content: "# 外部文件\n\n正文。", name: "external.md", path },
+    },
+    openRequest: { name: "external.md", path },
+  });
+  await visit(page, "/");
+
+  await expect(page.locator(".markdown-body h1")).toHaveText("外部文件");
+  await expect(
+    page.locator("aside").getByRole("button", { name: "大纲" })
+  ).toHaveAttribute("aria-pressed", "true");
+  await expect(page.locator("aside nav")).toContainText("外部文件");
+});
+
+test("a file opened from the recent list keeps the recent view", async ({
+  page,
+}) => {
+  const path = "C:\\notes\\recent.md";
+
+  await page.addInitScript(stubDesktopBridge, {
+    documents: {
+      [path]: { content: "# 最近文件", name: "recent.md", path },
+    },
+    recent: [
+      {
+        directory: "C:\\notes",
+        name: "recent.md",
+        openedAt: 1,
+        path,
+      },
+    ],
+  });
+  await visit(page, "/");
+
+  await page.getByRole("button", { name: /recent\.md/u }).click();
+
+  await expect(page.locator(".markdown-body h1")).toHaveText("最近文件");
+  await expect(
+    page.locator("aside").getByRole("button", { name: "最近" })
+  ).toHaveAttribute("aria-pressed", "true");
+});
+
+test("a file opened from the file tree keeps the files view", async ({
+  page,
+}) => {
+  const root = "C:\\notes";
+  const path = "C:\\notes\\tree.md";
+
+  await page.addInitScript(stubDesktopBridge, {
+    documents: {
+      [path]: { content: "# 文件树", name: "tree.md", path },
+    },
+    folders: [
+      {
+        files: [{ name: "tree.md", path, relativePath: "tree.md" }],
+        name: "notes",
+        path: root,
+        truncated: false,
+      },
+    ],
+  });
+  await visit(page, "/");
+
+  await page.getByRole("button", { name: "tree.md" }).click();
+
+  await expect(page.locator(".markdown-body h1")).toHaveText("文件树");
+  await expect(
+    page.locator("aside").getByRole("button", { name: "文件", exact: true })
+  ).toHaveAttribute("aria-pressed", "true");
+});
+
+test("a recent file can be revealed in the file manager", async ({ page }) => {
+  const path = "C:\\notes\\recent.md";
+
+  await page.addInitScript(stubDesktopBridge, {
+    recent: [
+      {
+        directory: "C:\\notes",
+        name: "recent.md",
+        openedAt: 1,
+        path,
+      },
+    ],
+  });
+  await visit(page, "/");
+
+  await page
+    .getByRole("button", { name: /recent\.md/u })
+    .click({ button: "right" });
+
+  const item = page.getByRole("menuitem", {
+    name: "打开文件所在的位置",
+  });
+
+  await expect(item).toBeVisible();
+  await item.click();
+
+  await expect
+    .poll(
+      async () =>
+        await page.evaluate(() =>
+          localStorage.getItem("markdownview:test:revealed-file")
+        )
+    )
+    .toBe(path);
 });
