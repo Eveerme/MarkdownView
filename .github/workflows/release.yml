@@ -43,14 +43,15 @@ jobs:
         run: |
           $exe = Get-ChildItem apps/desktop/src-tauri/target/release/bundle/nsis -Filter '*.exe' -Recurse | Select-Object -First 1
           if ($null -eq $exe) { throw 'No Windows installer was produced.' }
-          $version = '${{ github.ref_name }}'.TrimStart('v')
+          $tag = '${{ github.ref_name }}'
+          $version = $tag.TrimStart('v')
           $manifest = @{
             version = $version
             notes = 'Release ' + $version
             date = (Get-Date -Format o)
             sha256 = (Get-FileHash $exe.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
             size = $exe.Length
-            url = 'https://github.com/${{ github.repository }}/releases/download/' + $version + '/' + $exe.Name
+            url = 'https://github.com/${{ github.repository }}/releases/download/' + $tag + '/' + $exe.Name
           } | ConvertTo-Json -Compress
           New-Item -ItemType Directory -Force site | Out-Null
           Set-Content -Path site/latest.json -Value $manifest -Encoding utf8
