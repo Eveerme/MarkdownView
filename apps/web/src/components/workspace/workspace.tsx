@@ -15,6 +15,7 @@ import { PreviewPane } from "#src/components/workspace/preview-pane.tsx";
 import { StatusBar } from "#src/components/workspace/status-bar.tsx";
 import { TabBar } from "#src/components/workspace/tab-bar.tsx";
 import { Toolbar } from "#src/components/workspace/toolbar.tsx";
+import { readingLineOf } from "#src/lib/reading-line.ts";
 import { useActiveOutline } from "#src/lib/use-active-outline.ts";
 import { useScrollSync } from "#src/lib/use-scroll-sync.ts";
 import { useSettings } from "#src/lib/use-settings.tsx";
@@ -52,13 +53,27 @@ export const Workspace = () => {
     actions.current = workspace.actions;
   });
 
+  // A switch measures the panes as they stand before the other one unmounts, so
+  // the line it carries over is the one the reader is looking at. The preview
+  // answers whenever it is open: it is the reading surface of a split.
+  const { mode, registerReader } = workspace;
+
+  useEffect(() => {
+    registerReader(() =>
+      readingLineOf(
+        mode === "preview" ? null : editorView,
+        mode === "edit" ? null : previewElement
+      )
+    );
+  }, [editorView, mode, previewElement, registerReader]);
+
   // The preview is memoized, so its handlers keep one identity for its lifetime.
   const openLink = useCallback((href: string) => {
     void actions.current.openLink(href);
   }, []);
 
-  const clearPreviewAnchor = useCallback(() => {
-    actions.current.clearPreviewAnchor();
+  const clearPreviewTarget = useCallback(() => {
+    actions.current.clearPreviewTarget();
   }, []);
 
   const focusLine = useCallback((line: number) => {
@@ -303,9 +318,9 @@ export const Workspace = () => {
                 key={workspace.filePath ?? "scratch"}
                 onOpenLink={openLink}
                 onScrollContainerChange={setPreviewElement}
-                onScrollHandled={clearPreviewAnchor}
+                onScrollHandled={clearPreviewTarget}
                 onSelectLine={focusLine}
-                scrollTarget={workspace.previewAnchor}
+                scrollTarget={workspace.previewTarget}
                 showFrontMatter={settings.showFrontMatter}
               />
             </div>

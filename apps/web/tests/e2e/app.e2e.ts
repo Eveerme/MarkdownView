@@ -74,8 +74,6 @@ const stubDesktopBridge = (scenario: DesktopScenario = {}) => {
         // The recent list starts empty.
       },
       saveImage: () => ({ relativePath: "image.png" }),
-      uploadImage: () => ({ url: "https://example.com/image.png" }),
-      testImageHost: () => true,
       checkUpdate: () => null,
       downloadUpdate: () => ({ path: "update.exe" }),
       installUpdate: () => {
@@ -262,6 +260,98 @@ test("the split panes scroll together", async ({ page }) => {
       return top;
     })
     .toBeLessThan(1);
+});
+
+test("switching views keeps the reading position", async ({ page }) => {
+  await visit(page, "/");
+
+  await page.locator(".cm-content").click();
+  await page.keyboard.press("Control+A");
+  await page.keyboard.insertText(
+    Array.from(
+      { length: 40 },
+      (_, index) => `## 第 ${index} 节\n\n${"正文。".repeat(20)}`
+    ).join("\n\n")
+  );
+
+  await page.getByRole("button", { name: "预览" }).click();
+
+  await page.locator(".preview-scroll").evaluate((element) => {
+    const heading = element.querySelector("#第-30-节");
+
+    if (heading instanceof HTMLElement) {
+      element.scrollTop = heading.offsetTop;
+    }
+  });
+
+  await expect(page.locator("#第-30-节")).toBeInViewport();
+
+  await page.getByRole("button", { name: "编辑" }).click();
+
+  // The pane that replaced the preview opens at the heading the reader was at,
+  // not at the top of the document.
+  await expect(
+    page.locator(".cm-line").filter({ hasText: "第 30 节" })
+  ).toBeVisible();
+
+  await page.getByRole("button", { name: "预览" }).click();
+
+  await expect(page.locator("#第-30-节")).toBeInViewport();
+});
+
+test("switching tabs keeps each document's reading position", async ({
+  page,
+}) => {
+  const first = "C:\\notes\\long-one.md";
+  const second = "C:\\notes\\long-two.md";
+
+  const sections = Array.from(
+    { length: 40 },
+    (_, index) => `## 第 ${index} 节\n\n${"正文。".repeat(20)}`
+  ).join("\n\n");
+
+  await page.addInitScript(stubDesktopBridge, {
+    documents: {
+      [first]: { content: sections, name: "long-one.md", path: first },
+      [second]: { content: sections, name: "long-two.md", path: second },
+    },
+    folders: [
+      {
+        files: [
+          { name: "long-one.md", path: first, relativePath: "long-one.md" },
+          { name: "long-two.md", path: second, relativePath: "long-two.md" },
+        ],
+        name: "notes",
+        path: "C:\\notes",
+        truncated: false,
+      },
+    ],
+  });
+  await visit(page, "/");
+
+  await page.getByRole("button", { name: "long-one.md" }).click();
+
+  await page.locator(".preview-scroll").evaluate((element) => {
+    const heading = element.querySelector("#第-30-节");
+
+    if (heading instanceof HTMLElement) {
+      element.scrollTop = heading.offsetTop;
+    }
+  });
+
+  await expect(page.locator("#第-30-节")).toBeInViewport();
+
+  await page.getByRole("button", { name: "long-two.md" }).click();
+
+  const secondPane = page.locator(".preview-scroll");
+
+  await expect
+    .poll(async () => await secondPane.evaluate((element) => element.scrollTop))
+    .toBeLessThan(1);
+
+  await page.getByRole("tab", { name: /long-one\.md/u }).click();
+
+  await expect(page.locator("#第-30-节")).toBeInViewport();
 });
 
 test("settings turn on line numbers and keep the choice", async ({ page }) => {

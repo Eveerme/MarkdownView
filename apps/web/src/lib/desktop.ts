@@ -13,7 +13,6 @@ import {
   recentFileSchema,
   resolvedLinkSchema,
   savedImageSchema,
-  uploadedImageSchema,
   versionsSchema,
   updateInfoSchema,
   desktopCommands,
@@ -25,7 +24,6 @@ import type {
   ResolveLinkRequest,
   SaveFileAsRequest,
   SaveFileRequest,
-  UploadImageRequest,
 } from "@markdownview/desktop-contract";
 
 const call = async <T>(
@@ -130,14 +128,6 @@ const tauriDesktop: DesktopApi = {
     await call(desktopCommands.saveImage, savedImageSchema, {
       ...request,
       data: [...request.data],
-    }),
-
-  uploadImage: async (request: UploadImageRequest) =>
-    await call(desktopCommands.uploadImage, uploadedImageSchema, request),
-
-  testImageHost: async (endpoint) =>
-    await call(desktopCommands.testImageHost, z.boolean(), {
-      endpoint: z.url().parse(endpoint),
     }),
 
   checkUpdate: async () =>

@@ -13,10 +13,10 @@ use tauri_plugin_dialog::DialogExt;
 use tauri_plugin_opener::OpenerExt;
 
 use crate::{
-    assets, files, image_host, links,
+    assets, files, links,
     models::{
         DownloadedUpdate, MarkdownDocument, MarkdownFolder, MarkdownOpenRequest, MarkdownSavedFile,
-        RecentFile, ResolvedLink, SavedImage, UpdateInfo, UploadedImage, Versions,
+        RecentFile, ResolvedLink, SavedImage, UpdateInfo, Versions,
     },
     state::{AppState, UpdaterState},
     updater,
@@ -360,32 +360,6 @@ pub async fn save_image(
     let from = shared.assert_allowed(&from)?;
 
     Ok(blocking(move || assets::save_image_asset(&data, &from, &mime_type)).await??)
-}
-
-#[tauri::command(rename_all = "camelCase")]
-pub async fn upload_image(
-    app: AppHandle,
-    endpoint: String,
-    from: String,
-    relative_path: String,
-) -> Result<UploadedImage, String> {
-    let shared = state(&app);
-    let from = shared.assert_allowed(&from)?;
-    let directory = from.parent().unwrap_or(&from).to_path_buf();
-    let image_path = files::resolve_path(&directory.join(&relative_path));
-
-    if !links::is_path_within(&directory, &image_path) {
-        return Err("图片不在当前笔记目录中".to_string());
-    }
-
-    Ok(blocking(move || image_host::upload_to_image_host(&endpoint, &image_path)).await??)
-}
-
-#[tauri::command(rename_all = "camelCase")]
-pub async fn test_image_host(endpoint: String) -> bool {
-    blocking(move || image_host::is_image_host_reachable(&endpoint))
-        .await
-        .unwrap_or(false)
 }
 
 #[tauri::command(rename_all = "camelCase")]

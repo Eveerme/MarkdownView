@@ -23,8 +23,6 @@ export const desktopCommands = {
   recentFiles: "recent_files",
   clearRecentFiles: "clear_recent_files",
   saveImage: "save_image",
-  uploadImage: "upload_image",
-  testImageHost: "test_image_host",
   checkUpdate: "check_update",
   downloadUpdate: "download_update",
   installUpdate: "install_update",
@@ -136,27 +134,6 @@ export const savedImageSchema = z.object({
 
 export type SavedImage = z.infer<typeof savedImageSchema>;
 
-export const uploadImageRequestSchema = z.object({
-  endpoint: z.url(),
-  from: z.string().min(1),
-  relativePath: z.string().min(1),
-});
-
-export type UploadImageRequest = z.infer<typeof uploadImageRequestSchema>;
-
-export const uploadedImageSchema = z.object({
-  url: z.url(),
-});
-
-export type UploadedImage = z.infer<typeof uploadedImageSchema>;
-
-export const imageHostConfigSchema = z.object({
-  endpoint: z.url(),
-  path: z.string().min(1),
-});
-
-export type ImageHostConfig = z.infer<typeof imageHostConfigSchema>;
-
 export const updateInfoSchema = z.object({
   date: z.string(),
   notes: z.string(),
@@ -208,8 +185,6 @@ export interface DesktopApi {
   recentFiles: () => Promise<RecentFile[]>;
   clearRecentFiles: () => Promise<void>;
   saveImage: (request: SaveImageRequest) => Promise<SavedImage>;
-  uploadImage: (request: UploadImageRequest) => Promise<UploadedImage>;
-  testImageHost: (endpoint: string) => Promise<boolean>;
   checkUpdate: () => Promise<UpdateInfo | null>;
   downloadUpdate: (request: DownloadUpdateRequest) => Promise<DownloadedUpdate>;
   installUpdate: (path: string) => Promise<void>;

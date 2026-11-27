@@ -26,12 +26,10 @@ import { MermaidBlock } from "#src/components/workspace/mermaid-block.tsx";
 import { assetUrl } from "#src/lib/asset-url.ts";
 import { frontMatterEntries, parseFrontMatter } from "#src/lib/front-matter.ts";
 import { rehypeHtmlBlocks } from "#src/lib/html-blocks.ts";
+import { countLines } from "#src/lib/markdown-stats.ts";
+import { previewTopForLine, readAnchors } from "#src/lib/reading-line.ts";
 import { rehypeSourceLines } from "#src/lib/source-lines.ts";
-
-interface PreviewScrollTarget {
-  id: string;
-  nonce: number;
-}
+import type { PreviewTarget } from "#src/lib/use-workspace.ts";
 
 interface PreviewPaneProps {
   content: string;
@@ -40,7 +38,7 @@ interface PreviewPaneProps {
   onScrollContainerChange?: (element: HTMLDivElement | null) => void;
   onScrollHandled?: () => void;
   onSelectLine?: (line: number) => void;
-  scrollTarget: PreviewScrollTarget | null;
+  scrollTarget: PreviewTarget | null;
   showFrontMatter?: boolean;
 }
 
@@ -231,7 +229,9 @@ const PreviewPaneView = ({
 
   useEffect(() => {
     if (scrollTarget === null) {
-      return;
+      return () => {
+        // Nothing to show, so there is nothing to clean up.
+      };
     }
 
     const element = container.current;
@@ -239,35 +239,124 @@ const PreviewPaneView = ({
     if (element === null) {
       scrollHandled.current?.();
 
-      return;
+      return () => {
+        // The pane is not mounted yet, so there is nothing to clean up.
+      };
     }
 
-    const target = element.querySelector(`#${CSS.escape(scrollTarget.id)}`);
+    const settle = () => {
+      if (scrollTarget.kind === "line") {
+        const top = previewTopForLine(
+          element,
+          readAnchors(element),
+          scrollTarget.line
+        );
 
-    if (target instanceof HTMLElement) {
-      // Scrolling the heading into view by hand keeps the movement inside the
-      // preview: scrollIntoView also scrolls the window, which would push the
-      // app frame up and leave a gap below it.
-      const margin =
-        // oxlint-disable-next-line unicorn/prefer-number-coercion
-        Number.parseFloat(getComputedStyle(target).scrollMarginTop) || 0;
+        if (top !== null) {
+          element.scrollTo({ top: Math.max(0, top) });
+        }
 
-      const top =
-        target.getBoundingClientRect().top -
-        element.getBoundingClientRect().top +
-        element.scrollTop -
-        margin;
+        return;
+      }
 
-      element.scrollTo({ top: Math.max(0, top) });
+      const target = element.querySelector(`#${CSS.escape(scrollTarget.id)}`);
+
+      if (target instanceof HTMLElement) {
+        // Scrolling the heading into view by hand keeps the movement inside the
+        // preview: scrollIntoView also scrolls the window, which would push the
+        // app frame up and leave a gap below it.
+        const margin =
+          // oxlint-disable-next-line unicorn/prefer-number-coercion
+          Number.parseFloat(getComputedStyle(target).scrollMarginTop) || 0;
+
+        const top =
+          target.getBoundingClientRect().top -
+          element.getBoundingClientRect().top +
+          element.scrollTop -
+          margin;
+
+        element.scrollTo({ top: Math.max(0, top) });
+      }
+    };
+
+    settle();
+
+    // Images and fonts arrive after this render and move the blocks below them,
+    // so the same line lands at a different offset once they are in place. The
+    // correction ends as soon as the reader takes over.
+    let frame: number | null = null;
+    let done = false;
+
+    const correct = () => {
+      frame = null;
+
+      if (done) {
+        return;
+      }
+
+      settle();
+    };
+
+    const schedule = () => {
+      if (frame === null && !done) {
+        frame = requestAnimationFrame(correct);
+      }
+    };
+
+    const stop = () => {
+      done = true;
+
+      if (frame !== null) {
+        cancelAnimationFrame(frame);
+        frame = null;
+      }
+
+      // The target has served its purpose. Dropping it keeps a later remount of
+      // the pane — a save under a new name, say — from jumping back to it.
+      if (scrollTarget.kind === "line") {
+        scrollHandled.current?.();
+      }
+    };
+
+    const page = element.querySelector(".markdown-page") ?? element;
+    const observer = new ResizeObserver(schedule);
+
+    observer.observe(page);
+    element.addEventListener("wheel", stop, { passive: true, once: true });
+    element.addEventListener("touchend", stop, { passive: true, once: true });
+    element.addEventListener("pointerdown", stop, {
+      passive: true,
+      once: true,
+    });
+    window.addEventListener("keydown", stop, { once: true });
+
+    const timer = setTimeout(stop, 1200);
+
+    // A heading jump is one-shot; a remembered line keeps its target so the
+    // correction can run until the reader takes over or the pane unmounts.
+    if (scrollTarget.kind === "id") {
+      scrollHandled.current?.();
     }
 
-    scrollHandled.current?.();
+    return () => {
+      observer.disconnect();
+      element.removeEventListener("wheel", stop);
+      element.removeEventListener("touchend", stop);
+      element.removeEventListener("pointerdown", stop);
+      window.removeEventListener("keydown", stop);
+      clearTimeout(timer);
+      cancelAnimationFrame(frame ?? 0);
+    };
   }, [scrollTarget]);
 
   return (
     <LinkHandlerContext.Provider value={dispatchOpenLink}>
       <AssetUrlContext.Provider value={resolveAsset}>
-        <div className="preview-scroll h-full min-h-0" ref={attachContainer}>
+        <div
+          className="preview-scroll h-full min-h-0"
+          data-doc-lines={countLines(content)}
+          ref={attachContainer}
+        >
           {content.trim() === "" ? (
             <div className="blank-page grid h-full place-items-center px-8 py-16 text-center">
               <div className="max-w-xs">

@@ -4,7 +4,7 @@ import { EditorView, lineNumbers } from "@codemirror/view";
 import { tags } from "@lezer/highlight";
 import CodeMirror from "@uiw/react-codemirror";
 import type { ReactCodeMirrorRef } from "@uiw/react-codemirror";
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { ClipboardEvent, DragEvent } from "react";
 
 import { publishCursor } from "#src/lib/editor-cursor.ts";
@@ -80,6 +80,8 @@ const insertImage = async (
 };
 
 interface EditorReveal {
+  /** False leaves the focus where it was, such as on the tab that was clicked. */
+  focus?: boolean;
   line: number;
   nonce: number;
 }
@@ -96,6 +98,21 @@ interface EditorPaneProps {
   wordWrap: boolean;
 }
 
+/** Put the view and the caret at a source line, focusing unless told not to. */
+const applyReveal = (view: EditorView, reveal: EditorReveal) => {
+  const lineNumber = Math.min(Math.max(reveal.line, 1), view.state.doc.lines);
+  const line = view.state.doc.line(lineNumber);
+
+  view.dispatch({
+    effects: EditorView.scrollIntoView(line.from, { y: "start" }),
+    selection: { anchor: line.from },
+  });
+
+  if (reveal.focus !== false) {
+    view.focus();
+  }
+};
+
 export const EditorPane = ({
   focusMode,
   lineNumbers: showLineNumbers,
@@ -108,6 +125,7 @@ export const EditorPane = ({
   wordWrap,
 }: EditorPaneProps) => {
   const editor = useRef<ReactCodeMirrorRef>(null);
+  const [view, setView] = useState<EditorView | null>(null);
 
   useEffect(
     () => () => {
@@ -169,26 +187,16 @@ export const EditorPane = ({
     void insertImage(editor.current?.view, file, onImagePaste);
   };
 
+  // The editor is created inside CodeMirror after this pane's first render, so
+  // the reveal waits for it: a target set while the pane mounts would otherwise
+  // be dropped before there is a view to move.
   useEffect(() => {
-    if (reveal === null) {
+    if (reveal === null || view === null) {
       return;
     }
 
-    const view = editor.current?.view;
-
-    if (view === undefined) {
-      return;
-    }
-
-    const lineNumber = Math.min(Math.max(reveal.line, 1), view.state.doc.lines);
-    const line = view.state.doc.line(lineNumber);
-
-    view.dispatch({
-      effects: EditorView.scrollIntoView(line.from, { y: "start" }),
-      selection: { anchor: line.from },
-    });
-    view.focus();
-  }, [reveal]);
+    applyReveal(view, reveal);
+  }, [reveal, view]);
 
   return (
     <div
@@ -209,8 +217,9 @@ export const EditorPane = ({
         extensions={editorExtensions}
         height="100%"
         onChange={onChange}
-        onCreateEditor={(view) => {
-          onViewChange?.(view);
+        onCreateEditor={(created) => {
+          setView(created);
+          onViewChange?.(created);
         }}
         placeholder="开始写作…"
         ref={editor}

@@ -74,12 +74,6 @@ pub struct SavedImage {
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct UploadedImage {
-    pub url: String,
-}
-
-#[derive(Debug, Clone, Serialize)]
-#[serde(rename_all = "camelCase")]
 pub struct DownloadedUpdate {
     pub path: String,
 }

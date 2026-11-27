@@ -1,15 +1,11 @@
 import { recentFilesCapacity } from "@markdownview/desktop-contract";
 
-type ImageHost = "local" | "picgo";
-
 export interface AppSettings {
   autoCheckUpdate: boolean;
   autoSave: boolean;
   editorFontSize: number;
   focusMode: boolean;
-  imageHost: ImageHost;
   lineNumbers: boolean;
-  picgoEndpoint: string;
   previewFontSize: number;
   readingWidth: number;
   recentFilesLimit: number;
@@ -34,9 +30,7 @@ const settingKeys = {
   autoSave: `${prefix}auto-save`,
   editorFontSize: `${prefix}editor-font-size`,
   focusMode: `${prefix}focus-mode`,
-  imageHost: `${prefix}image-host`,
   lineNumbers: `${prefix}line-numbers`,
-  picgoEndpoint: `${prefix}picgo-endpoint`,
   previewFontSize: `${prefix}preview-font-size`,
   // The width now sizes both panes; the key keeps its 0.3.2 name so stored preferences survive.
   readingWidth: `${prefix}preview-width`,
@@ -56,16 +50,12 @@ export const settingsRanges = {
   splitRatio: { max: 0.72, min: 0.28 },
 } as const satisfies Record<string, NumericRange>;
 
-const defaultPicgoEndpoint = "http://127.0.0.1:36677";
-
 export const defaultSettings: AppSettings = {
   autoCheckUpdate: true,
   autoSave: true,
   editorFontSize: 14,
   focusMode: false,
-  imageHost: "local",
   lineNumbers: false,
-  picgoEndpoint: defaultPicgoEndpoint,
   previewFontSize: 17,
   readingWidth: 76,
   recentFilesLimit: 10,
@@ -114,32 +104,6 @@ const readNumber = (
   return Math.min(range.max, Math.max(range.min, value));
 };
 
-const readString = (
-  storage: SettingsStorage,
-  key: string,
-  fallback: string,
-  maxLength: number
-): string => {
-  const value = storage.getItem(key);
-
-  if (value === null || value.trim() === "" || value.length > maxLength) {
-    return fallback;
-  }
-
-  return value;
-};
-
-const readImageHost = (storage: SettingsStorage): ImageHost => {
-  const value = storage.getItem(settingKeys.imageHost);
-
-  return value === "local" || value === "picgo"
-    ? value
-    : defaultSettings.imageHost;
-};
-
-const readEndpoint = (storage: SettingsStorage): string =>
-  readString(storage, settingKeys.picgoEndpoint, defaultPicgoEndpoint, 200);
-
 export const readSettings = (
   storage: SettingsStorage | null = browserStorage()
 ): AppSettings => {
@@ -170,13 +134,11 @@ export const readSettings = (
         settingKeys.focusMode,
         defaultSettings.focusMode
       ),
-      imageHost: readImageHost(storage),
       lineNumbers: readBoolean(
         storage,
         settingKeys.lineNumbers,
         defaultSettings.lineNumbers
       ),
-      picgoEndpoint: readEndpoint(storage),
       previewFontSize: readNumber(
         storage,
         settingKeys.previewFontSize,
@@ -246,9 +208,7 @@ export const writeSettings = (
       String(settings.editorFontSize)
     );
     storage.setItem(settingKeys.focusMode, String(settings.focusMode));
-    storage.setItem(settingKeys.imageHost, settings.imageHost);
     storage.setItem(settingKeys.lineNumbers, String(settings.lineNumbers));
-    storage.setItem(settingKeys.picgoEndpoint, settings.picgoEndpoint);
     storage.setItem(
       settingKeys.previewFontSize,
       String(settings.previewFontSize)
@@ -286,9 +246,7 @@ export const normalizeSettings = (settings: AppSettings): AppSettings => ({
     Math.max(settingsRanges.editorFontSize.min, settings.editorFontSize)
   ),
   focusMode: settings.focusMode,
-  imageHost: settings.imageHost === "picgo" ? "picgo" : "local",
   lineNumbers: settings.lineNumbers,
-  picgoEndpoint: settings.picgoEndpoint.slice(0, 200),
   previewFontSize: Math.min(
     settingsRanges.previewFontSize.max,
     Math.max(settingsRanges.previewFontSize.min, settings.previewFontSize)

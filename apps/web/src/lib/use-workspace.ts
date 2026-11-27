@@ -28,12 +28,14 @@ interface PendingAction {
   run: () => void;
 }
 
-interface PreviewAnchor {
-  id: string;
-  nonce: number;
-}
+/** A heading id, or the source line a mounted preview should show. */
+export type PreviewTarget =
+  | { id: string; kind: "id"; nonce: number }
+  | { kind: "line"; line: number; nonce: number };
 
 interface EditorReveal {
+  /** False leaves the focus where it was, such as on the tab that was clicked. */
+  focus?: boolean;
   line: number;
   nonce: number;
 }
@@ -122,7 +124,7 @@ export const useWorkspace = () => {
   const [sidebarView, setSidebarView] = useState<SidebarView>("recent");
   const [saving, setSaving] = useState(false);
 
-  const [previewAnchor, setPreviewAnchor] = useState<PreviewAnchor | null>(
+  const [previewTarget, setPreviewTarget] = useState<PreviewTarget | null>(
     null
   );
 
@@ -152,6 +154,12 @@ export const useWorkspace = () => {
   const dirtyRef = useRef(dirty);
   const tabsRef = useRef(tabs);
 
+  // The reading position of each tab, so mode and tab switches can come back to
+  // it: a pane that unmounts takes its scroll offset with it.
+  const readingLines = useRef(new Map<string, number>());
+  const activeIdRef = useRef(activeId);
+  const readPanes = useRef<() => number | null>(() => null);
+
   useEffect(() => {
     dirtyRef.current = dirty;
   }, [dirty]);
@@ -159,6 +167,36 @@ export const useWorkspace = () => {
   useEffect(() => {
     tabsRef.current = tabs;
   }, [tabs]);
+
+  useEffect(() => {
+    activeIdRef.current = activeId;
+  }, [activeId]);
+
+  const reveal = () => {
+    revealNonce.current += 1;
+
+    return revealNonce.current;
+  };
+
+  /**
+   * Records where the tab that is on screen is being read. It measures the panes
+   * as they stand, because a scroll report trails the reader by a frame and a
+   * switch can happen inside that frame.
+   */
+  const rememberPosition = () => {
+    const line = readPanes.current();
+
+    if (line !== null) {
+      readingLines.current.set(activeIdRef.current, line);
+    }
+  };
+
+  /** The workspace registers the reader that measures its panes on demand. */
+  const registerReader = useCallback((read: () => number | null) => {
+    readPanes.current = read;
+  }, []);
+
+  const lineOf = (id: string) => readingLines.current.get(id) ?? 1;
 
   const patchActive = (
     update: (current: DocumentTab) => Partial<DocumentTab>
@@ -177,9 +215,17 @@ export const useWorkspace = () => {
       return;
     }
 
+    rememberPosition();
+
+    const line = lineOf(id);
+    const nonce = reveal();
+
     setActiveId(id);
-    setPreviewAnchor(null);
-    setEditorReveal(null);
+    // The preview is rebuilt for the new tab and the source keeps its scroll, so
+    // both are given the line this tab was left on. The clicked tab keeps the
+    // focus; the source pane only moves its caret.
+    setPreviewTarget({ kind: "line", line, nonce });
+    setEditorReveal({ focus: false, line, nonce });
   };
 
   const guard = (run: () => void) => {
@@ -228,23 +274,38 @@ export const useWorkspace = () => {
 
     const opened = createTab(document.content, document.name, document.path);
 
+    rememberPosition();
     setTabs((current) => [...current, opened]);
     setActiveId(opened.id);
-    setPreviewAnchor(null);
+    setPreviewTarget(null);
     setEditorReveal(null);
     void refreshRecentFiles();
   };
 
   const changeMode = (next: ViewMode) => {
+    const previous = mode;
+
+    rememberPosition();
+
+    const line = lineOf(activeId);
+
     setMode(next);
     localStorage.setItem(modeStorageKey, next);
 
+    // Only a pane that the switch creates needs a target: one that stays mounted
+    // is already where the reader left it.
     if (next === "edit") {
-      setPreviewAnchor(null);
+      // No preview to place, and a target left behind would move it on a later
+      // mount.
+      setPreviewTarget(null);
+    } else if (previous === "edit") {
+      setPreviewTarget({ kind: "line", line, nonce: reveal() });
     }
 
     if (next === "preview") {
       setEditorReveal(null);
+    } else if (previous === "preview") {
+      setEditorReveal({ focus: false, line, nonce: reveal() });
     }
   };
 
@@ -403,12 +464,6 @@ export const useWorkspace = () => {
     }
   };
 
-  const reveal = () => {
-    revealNonce.current += 1;
-
-    return revealNonce.current;
-  };
-
   const saveImage = async (file: File): Promise<string | null> => {
     if (!bridge) {
       toast.info("插入图片需在桌面版使用。");
@@ -434,22 +489,6 @@ export const useWorkspace = () => {
           .replace(/\.[^.]+$/u, "")
           .replaceAll(/[[\]]/gu, "")
           .trim() || "图片";
-
-      if (settings.imageHost === "picgo") {
-        try {
-          const uploaded = await bridge.uploadImage({
-            endpoint: settings.picgoEndpoint,
-            from: filePath,
-            relativePath: saved.relativePath,
-          });
-
-          return `![${alt}](${uploaded.url})`;
-        } catch (error) {
-          toast.warning("上传到图床失败，已插入本地图片", {
-            description: error instanceof Error ? error.message : undefined,
-          });
-        }
-      }
 
       return `![${alt}](${saved.relativePath})`;
     } catch (error) {
@@ -497,7 +536,7 @@ export const useWorkspace = () => {
     const opened = await openPathFromDisk(target.path);
 
     if (opened && target.anchor !== null) {
-      setPreviewAnchor({ id: target.anchor, nonce: reveal() });
+      setPreviewTarget({ id: target.anchor, kind: "id", nonce: reveal() });
     }
   };
 
@@ -529,7 +568,7 @@ export const useWorkspace = () => {
 
       if (target.path === filePath) {
         if (target.anchor !== null) {
-          setPreviewAnchor({ id: target.anchor, nonce: reveal() });
+          setPreviewTarget({ id: target.anchor, kind: "id", nonce: reveal() });
         }
 
         return;
@@ -549,7 +588,7 @@ export const useWorkspace = () => {
     const nonce = reveal();
 
     if (mode !== "edit") {
-      setPreviewAnchor({ id: item.id, nonce });
+      setPreviewTarget({ id: item.id, kind: "id", nonce });
     }
 
     if (mode !== "preview") {
@@ -649,9 +688,10 @@ export const useWorkspace = () => {
     guard(() => {
       const draft = createTab("", untitledName, null);
 
+      rememberPosition();
       setTabs((current) => [...current, draft]);
       setActiveId(draft.id);
-      setPreviewAnchor(null);
+      setPreviewTarget(null);
       setEditorReveal(null);
     });
   };
@@ -704,10 +744,18 @@ export const useWorkspace = () => {
         const neighbor =
           tabsRef.current[position - 1] ?? tabsRef.current[position + 1];
 
-        setActiveId(neighbor?.id ?? welcomeTabId);
-        setPreviewAnchor(null);
-        setEditorReveal(null);
+        const next = neighbor?.id ?? welcomeTabId;
+        const line = lineOf(next);
+        const nonce = reveal();
+
+        setActiveId(next);
+        // The tab that takes over comes back to its own line, the same as a
+        // click on the tab bar.
+        setPreviewTarget({ kind: "line", line, nonce });
+        setEditorReveal({ focus: false, line, nonce });
       }
+
+      readingLines.current.delete(id);
     };
 
     if (target.content !== target.savedContent) {
@@ -818,8 +866,8 @@ export const useWorkspace = () => {
     consumeOpenRequestRef.current = consumeOpenRequest;
   });
 
-  const clearPreviewAnchor = useCallback(() => {
-    setPreviewAnchor(null);
+  const clearPreviewTarget = useCallback(() => {
+    setPreviewTarget(null);
   }, []);
 
   useEffect(() => {
@@ -1065,7 +1113,7 @@ export const useWorkspace = () => {
 
   return {
     actions: {
-      clearPreviewAnchor,
+      clearPreviewTarget,
       clearRecentFiles,
       closeTab,
       exportDocument,
@@ -1103,8 +1151,9 @@ export const useWorkspace = () => {
     isDesktop: bridge !== null,
     mode,
     outline,
-    previewAnchor,
+    previewTarget,
     recentFiles: recentFiles.slice(0, settings.recentFilesLimit),
+    registerReader,
     savedAt,
     saving,
     setContent: (value: string) => {

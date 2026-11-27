@@ -2,7 +2,6 @@ import { Settings2Icon } from "lucide-react";
 import { useTheme } from "next-themes";
 import { useEffect, useState } from "react";
 import type { ReactNode } from "react";
-import { toast } from "sonner";
 
 import { Button } from "@markdownview/ui/components/button";
 import {
@@ -13,11 +12,9 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@markdownview/ui/components/dialog";
-import { Input } from "@markdownview/ui/components/input";
 import { Slider } from "@markdownview/ui/components/slider";
 import { Switch } from "@markdownview/ui/components/switch";
 
-import { desktop } from "#src/lib/desktop.ts";
 import { settingsRanges } from "#src/lib/settings.ts";
 import { themeOptions } from "#src/lib/themes.ts";
 import { useSettings } from "#src/lib/use-settings.tsx";
@@ -150,7 +147,6 @@ const ThemeSection = () => {
 export const SettingsDialog = () => {
   const { settings, update } = useSettings();
   const [open, setOpen] = useState(false);
-  const [testingHost, setTestingHost] = useState(false);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -314,71 +310,6 @@ export const SettingsDialog = () => {
               suffix=" 条"
               value={settings.recentFilesLimit}
             />
-          </Section>
-
-          <Section title="图片">
-            <ToggleRow
-              description="开启后粘贴或拖入的图片先存到本地 assets，再上传到图床；失败时仍保留本地链接。"
-              label="上传到 PicGo 图床"
-              onChange={(picgo) => {
-                update({ imageHost: picgo ? "picgo" : "local" });
-              }}
-              value={settings.imageHost === "picgo"}
-            />
-            <div className="py-2.5">
-              <label className="font-medium" htmlFor="picgo-endpoint">
-                PicGo Server 地址
-              </label>
-              <p className="text-muted-foreground mt-0.5 text-xs leading-relaxed">
-                在 PicGo / PicList 的「设置 Server」中开启，默认端口 36677。
-              </p>
-              <div className="mt-2 flex gap-2">
-                <Input
-                  className="min-w-0 flex-1"
-                  id="picgo-endpoint"
-                  onChange={(event) => {
-                    update({ picgoEndpoint: event.target.value });
-                  }}
-                  value={settings.picgoEndpoint}
-                />
-                <Button
-                  disabled={testingHost}
-                  onClick={() => {
-                    const bridge = desktop();
-
-                    if (bridge === null) {
-                      toast.info("测试图床需在桌面版使用。");
-
-                      return;
-                    }
-
-                    setTestingHost(true);
-
-                    void (async () => {
-                      try {
-                        const reachable = await bridge.testImageHost(
-                          settings.picgoEndpoint
-                        );
-
-                        if (reachable) {
-                          toast.success("图床已连接");
-                        } else {
-                          toast.error("无法连接图床，请检查 Server 是否已开启");
-                        }
-                      } catch {
-                        toast.error("图床地址无效");
-                      }
-
-                      setTestingHost(false);
-                    })();
-                  }}
-                  type="button"
-                  variant="outline"
-                >
-                  {testingHost ? "测试中…" : "测试连接"}
-                </Button>
-              </div>
-            </div>
           </Section>
 
           <Section title="更新">

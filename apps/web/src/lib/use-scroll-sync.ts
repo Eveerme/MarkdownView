@@ -1,6 +1,11 @@
 import type { EditorView } from "@codemirror/view";
 import { useEffect, useRef } from "react";
 
+import {
+  lineAtEditorTop,
+  maxScrollOf,
+  readAnchors,
+} from "#src/lib/reading-line.ts";
 import { lineForTop, topForLine } from "#src/lib/scroll-sync.ts";
 import type { ScrollAnchor } from "#src/lib/scroll-sync.ts";
 
@@ -20,23 +25,6 @@ type Source = "editor" | "preview";
 
 const readingMargin = 8;
 const echoWindow = 120;
-
-const maxScrollOf = (element: Element) =>
-  Math.max(0, element.scrollHeight - element.clientHeight);
-
-const readAnchors = (preview: HTMLElement): ScrollAnchor[] => {
-  const anchors: ScrollAnchor[] = [];
-
-  for (const element of preview.querySelectorAll<HTMLElement>("[data-line]")) {
-    const line = Number(element.dataset.line);
-
-    if (Number.isFinite(line)) {
-      anchors.push({ line, top: element.offsetTop });
-    }
-  }
-
-  return anchors.toSorted((left, right) => left.line - right.line);
-};
 
 /**
  * Keeps the source pane and the preview at the same place in the document.
@@ -138,15 +126,9 @@ export const useScrollSync = ({
     };
 
     const syncFromEditor = () => {
-      const edge = scroller.getBoundingClientRect().top + readingMargin;
-
-      const line = editorView.state.doc.lineAt(
-        editorView.lineBlockAtHeight(edge - editorView.documentTop).from
-      ).number;
-
       const top = topForLine(
         anchorsFor(),
-        line,
+        lineAtEditorTop(editorView, readingMargin),
         editorView.state.doc.lines,
         maxScrollOf(target)
       );

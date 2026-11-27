@@ -1,7 +1,6 @@
 mod assets;
 mod commands;
 mod files;
-mod image_host;
 mod image_protocol;
 mod links;
 mod models;
@@ -64,8 +63,6 @@ pub fn run() {
             commands::recent_files,
             commands::clear_recent_files,
             commands::save_image,
-            commands::upload_image,
-            commands::test_image_host,
             commands::check_update,
             commands::download_update,
             commands::install_update,
