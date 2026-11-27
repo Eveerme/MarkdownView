@@ -13,6 +13,7 @@ pub const CACHE_MS: i64 = 6 * 60 * 60 * 1000;
 pub const REQUEST_GAP_MS: i64 = 60 * 1000;
 
 fn version_numbers(value: &str) -> Option<(u64, u64, u64)> {
+    let value = value.strip_prefix('v').unwrap_or(value);
     let mut parts = value.split('.');
     let parse = |part: &str| -> Option<u64> {
         let digits: String = part.chars().take_while(char::is_ascii_digit).collect();
@@ -163,7 +164,7 @@ mod tests {
         assert!(!is_newer("0.4.2", "0.4.2"));
         assert!(!is_newer("0.4.2-beta.1", "0.4.2"));
         assert!(!is_newer("0.3.9", "0.4.2"));
-        assert!(!is_newer("v1.2.3", "0.4.2"));
+        assert!(is_newer("v1.2.3", "0.4.2"));
         assert_eq!(version_numbers("1.2.3-rc.1"), Some((1, 2, 3)));
     }
 }

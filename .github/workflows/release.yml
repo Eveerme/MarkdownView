@@ -43,7 +43,7 @@ jobs:
         run: |
           $exe = Get-ChildItem apps/desktop/src-tauri/target/release/bundle/nsis -Filter '*.exe' -Recurse | Select-Object -First 1
           if ($null -eq $exe) { throw 'No Windows installer was produced.' }
-          $version = '${{ github.ref_name }}'
+          $version = '${{ github.ref_name }}'.TrimStart('v')
           $manifest = @{
             version = $version
             notes = 'Release ' + $version
