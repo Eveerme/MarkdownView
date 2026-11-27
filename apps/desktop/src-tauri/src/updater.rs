@@ -16,6 +16,7 @@ use crate::{models::{DownloadedUpdate, UpdateInfo}, persistence};
 
 const MANIFEST_URL: &str = "https://eveerme.github.io/MarkdownView/latest.json";
 const DOWNLOAD_PROGRESS_EVENT: &str = "download-progress";
+pub const APP_SAVE_EVENT: &str = "app-save";
 const CHUNK_SIZE: usize = 64 * 1024;
 pub const CACHE_MS: i64 = 6 * 60 * 60 * 1000;
 pub const REQUEST_GAP_MS: i64 = 60 * 1000;
@@ -196,18 +197,36 @@ pub fn download_update_blocking(
     })
 }
 
-/// Launch the installer detached from the app. Shell file associations are not
-/// involved, so this works even without a registered handler for `.exe`.
-pub fn launch_installer(path: &Path) -> Result<(), String> {
+/// Hand the installer to a detached waiter: it runs after this app exits, then
+/// reopens the app. Waiting for the process id lets the renderer flush edits
+/// and release the executable before NSIS replaces it.
+pub fn install_and_relaunch(setup: &Path, exe: &Path, pid: u32) -> Result<(), String> {
     #[cfg(windows)]
     {
         use std::os::windows::process::CommandExt;
 
-        const DETACHED_PROCESS: u32 = 0x00000008;
+        const CREATE_NO_WINDOW: u32 = 0x08000000;
         const CREATE_NEW_PROCESS_GROUP: u32 = 0x00000200;
 
-        std::process::Command::new(path)
-            .creation_flags(DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP)
+        let quoted = |path: &Path| {
+            format!("'{}'", crate::files::to_string(path).replace('\'', "''"))
+        };
+        let setup = quoted(setup);
+        let exe = quoted(exe);
+        let script = format!(
+            "Wait-Process -Id {pid} -Timeout 30 -ErrorAction SilentlyContinue; try {{ Start-Process -FilePath {setup} -ArgumentList '/S' -WindowStyle Hidden -Wait }} finally {{ if (Test-Path -LiteralPath {exe}) {{ Start-Process -FilePath {exe} }} }}"
+        );
+
+        std::process::Command::new("powershell")
+            .args([
+                "-NoProfile",
+                "-NonInteractive",
+                "-WindowStyle",
+                "Hidden",
+                "-Command",
+                &script,
+            ])
+            .creation_flags(CREATE_NO_WINDOW | CREATE_NEW_PROCESS_GROUP)
             .spawn()
             .map(|_| ())
             .map_err(|error| format!("启动安装程序失败：{error}"))
@@ -215,7 +234,8 @@ pub fn launch_installer(path: &Path) -> Result<(), String> {
 
     #[cfg(not(windows))]
     {
-        std::process::Command::new(path)
+        let _ = (pid, exe);
+        std::process::Command::new(setup)
             .spawn()
             .map(|_| ())
             .map_err(|error| format!("启动安装程序失败：{error}"))

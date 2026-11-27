@@ -94,7 +94,7 @@ export const AboutDialog = () => {
       const downloaded = await bridge.downloadUpdate(update, setProgress);
       setStage("installing");
       await bridge.installUpdate(downloaded.path);
-      toast.success("安装程序已启动，应用即将关闭；装完后重新打开即可");
+      toast.success("安装程序已启动，应用即将关闭并自动重新打开");
     } catch (error) {
       toast.error("更新失败", {
         description: error instanceof Error ? error.message : undefined,

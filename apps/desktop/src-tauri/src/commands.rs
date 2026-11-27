@@ -411,14 +411,17 @@ pub fn install_update(app: AppHandle, path: String) -> Result<(), String> {
         return Err("安装包不存在".to_string());
     }
 
-    updater::launch_installer(&target)?;
+    let exe = std::env::current_exe().map_err(|error| format!("找不到当前程序：{error}"))?;
 
-    // The installer replaces this executable, so this instance must let go of
-    // it. A short delay keeps the renderer's success toast on screen.
+    updater::install_and_relaunch(&target, &exe, std::process::id())?;
+
+    // Give the renderer time to save pending edits before the process exits;
+    // the detached waiter only starts installing once this pid is gone.
+    let _ = app.emit(updater::APP_SAVE_EVENT, ());
     let handle = app.clone();
 
     std::thread::spawn(move || {
-        std::thread::sleep(std::time::Duration::from_millis(600));
+        std::thread::sleep(std::time::Duration::from_millis(1200));
         handle.exit(0);
     });
 

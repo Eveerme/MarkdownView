@@ -29,6 +29,7 @@ export const desktopCommands = {
   exportDocument: "export_document",
   openRequestEvent: "open-request",
   downloadProgressEvent: "download-progress",
+  appSaveEvent: "app-save",
 } as const;
 
 /** The custom scheme the renderer loads local note images from. */
@@ -180,6 +181,8 @@ export interface DesktopApi {
   onOpenRequest: (
     listener: (request: MarkdownOpenRequest) => void
   ) => () => void;
+  /** Fired before an update closes the app, so pending edits can be flushed. */
+  onAppSave: (listener: () => void) => () => void;
   openFolder: () => Promise<MarkdownFolder[] | null>;
   listFolders: () => Promise<MarkdownFolder[]>;
   closeFolder: (path: string) => Promise<void>;

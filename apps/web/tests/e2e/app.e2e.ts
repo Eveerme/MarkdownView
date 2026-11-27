@@ -46,6 +46,9 @@ const stubDesktopBridge = (scenario: DesktopScenario = {}) => {
       onOpenRequest: () => () => {
         // Nothing subscribes to open requests in this test.
       },
+      onAppSave: () => () => {
+        // Nothing subscribes to update saves in this test.
+      },
       openFolder: () => null,
       listFolders: () => scenario.folders ?? [],
       closeFolder: () => {
@@ -114,6 +117,23 @@ test("opens with a sample document beside its source", async ({ page }) => {
   await expect(page.locator(".markdown-body h1")).toHaveText(
     "欢迎使用 MarkdownView"
   );
+});
+
+test("a single editor newline becomes a line break in the preview", async ({
+  page,
+}) => {
+  await visit(page, "/");
+
+  await page.locator(".cm-content").click();
+  await page.keyboard.press("Control+A");
+  await page.keyboard.type("第一行");
+  await page.keyboard.press("Enter");
+  await page.keyboard.type("第二行");
+
+  const paragraph = page.locator(".markdown-body p").first();
+  await expect(paragraph).toContainText("第一行");
+  await expect(paragraph).toContainText("第二行");
+  expect(await paragraph.locator("br").count()).toBe(1);
 });
 
 test("typing Markdown renders in the preview", async ({ page }) => {
@@ -253,7 +273,7 @@ test("shows download progress and installs an available update", async ({
   });
 
   await expect(
-    page.getByText("安装程序已启动，应用即将关闭；装完后重新打开即可")
+    page.getByText("安装程序已启动，应用即将关闭并自动重新打开")
   ).toBeVisible();
   expect(
     await page.evaluate(() =>

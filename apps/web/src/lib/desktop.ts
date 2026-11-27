@@ -73,6 +73,28 @@ const tauriDesktop: DesktopApi = {
     };
   },
 
+  onAppSave: (listener) => {
+    let active = true;
+    let unlisten: (() => void) | null = null;
+
+    void (async () => {
+      const handler = await listen(desktopCommands.appSaveEvent, () => {
+        listener();
+      });
+
+      if (active) {
+        unlisten = handler;
+      } else {
+        handler();
+      }
+    })();
+
+    return () => {
+      active = false;
+      unlisten?.();
+    };
+  },
+
   openFolder: async () =>
     await call(
       desktopCommands.openFolder,

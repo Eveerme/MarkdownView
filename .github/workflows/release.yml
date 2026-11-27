@@ -38,26 +38,39 @@ jobs:
         working-directory: apps/desktop
         run: pnpm exec tauri build
 
-      - name: Write update manifest
+      - name: Write update manifest and release notes
         shell: pwsh
         run: |
           $exe = Get-ChildItem apps/desktop/src-tauri/target/release/bundle/nsis -Filter '*.exe' -Recurse | Select-Object -First 1
           if ($null -eq $exe) { throw 'No Windows installer was produced.' }
           $tag = '${{ github.ref_name }}'
           $version = $tag.TrimStart('v')
+
+          # A release without a CHANGELOG entry must fail instead of publishing an empty note.
+          $changelog = Get-Content CHANGELOG.md -Raw -Encoding utf8
+          $match = [regex]::Match($changelog, '(?ms)^## v' + [regex]::Escape($version) + '\r?\n(?<body>.*?)(?=^## v|\z)')
+          if (-not $match.Success -or [string]::IsNullOrWhiteSpace($match.Groups['body'].Value)) {
+            throw "CHANGELOG.md has no notes for v$version"
+          }
+          $notes = $match.Groups['body'].Value.Trim()
+
+          New-Item -ItemType Directory -Force site | Out-Null
+          Set-Content -Path site/release-notes.md -Value $notes -Encoding utf8
+
+          $manifestNotes = [regex]::Replace($notes, '(?ms)^### 下载地址.*\z', '').Trim()
           $manifest = @{
             version = $version
-            notes = 'Release ' + $version
+            notes = $manifestNotes
             date = (Get-Date -Format o)
             sha256 = (Get-FileHash $exe.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
             size = $exe.Length
             url = 'https://github.com/${{ github.repository }}/releases/download/' + $tag + '/' + $exe.Name
           } | ConvertTo-Json -Compress
-          New-Item -ItemType Directory -Force site | Out-Null
           Set-Content -Path site/latest.json -Value $manifest -Encoding utf8
 
       - uses: softprops/action-gh-release@v2
         with:
+          body_path: site/release-notes.md
           files: apps/desktop/src-tauri/target/release/bundle/nsis/*.exe
 
       - uses: actions/configure-pages@v5

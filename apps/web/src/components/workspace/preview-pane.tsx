@@ -18,6 +18,7 @@ import rehypeHighlight from "rehype-highlight";
 import rehypeKatex from "rehype-katex";
 import rehypeRaw from "rehype-raw";
 import rehypeSlug from "rehype-slug";
+import remarkBreaks from "remark-breaks";
 import remarkGfm from "remark-gfm";
 import remarkMath from "remark-math";
 
@@ -410,7 +411,7 @@ const PreviewPaneView = ({
                   rehypeHighlight,
                   [rehypeSourceLines, { offset: frontMatter.lineOffset }],
                 ]}
-                remarkPlugins={[remarkGfm, remarkMath]}
+                remarkPlugins={[remarkBreaks, remarkGfm, remarkMath]}
               >
                 {frontMatter.body}
               </Markdown>

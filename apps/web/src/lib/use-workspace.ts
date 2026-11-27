@@ -1026,6 +1026,47 @@ export const useWorkspace = () => {
     };
   }, [bridge, settings.autoSave, tabs]);
 
+  // An update closes the app while the installer waits, so flush every dirty
+  // tab immediately instead of waiting for the autosave debounce.
+  useEffect(() => {
+    const unsubscribe = bridge?.onAppSave(() => {
+      for (const item of tabs) {
+        if (item.path === null || item.content === item.savedContent) {
+          continue;
+        }
+
+        const snapshot = item.content;
+        const { path } = item;
+        const { id } = item;
+
+        void (async () => {
+          try {
+            await bridge.saveFile({ content: snapshot, path });
+            setTabs((current) =>
+              current.map((entry) =>
+                entry.id === id && entry.content === snapshot
+                  ? {
+                      ...entry,
+                      savedAt: Date.now(),
+                      savedContent: snapshot,
+                    }
+                  : entry
+              )
+            );
+          } catch (error) {
+            if (error instanceof Error) {
+              report("保存失败", error);
+            }
+          }
+        })();
+      }
+    });
+
+    return () => {
+      unsubscribe?.();
+    };
+  }, [bridge, tabs]);
+
   useEffect(() => {
     document.title = `${dirty ? "• " : ""}${fileName} — MarkdownView`;
   }, [dirty, fileName]);

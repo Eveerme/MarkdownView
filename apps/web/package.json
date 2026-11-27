@@ -41,6 +41,7 @@
     "rehype-sanitize": "catalog:",
     "rehype-slug": "catalog:",
     "rehype-stringify": "catalog:",
+    "remark-breaks": "catalog:",
     "remark-gfm": "catalog:",
     "remark-math": "catalog:",
     "remark-parse": "catalog:",

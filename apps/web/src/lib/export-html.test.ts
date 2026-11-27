@@ -29,6 +29,12 @@ describe("exported Markdown", () => {
     expect(html).toContain("checked");
   });
 
+  it("turns a single editor newline into a line break", async () => {
+    const html = await renderMarkdownHtml("第一行\n第二行");
+
+    expect(html).toMatch(/第一行<br>\s*第二行/u);
+  });
+
   it("keeps syntax highlighting classes and heading anchors", async () => {
     const html = await renderMarkdownHtml(
       ["# 示例", "", "```js", "const value = 1;", "```"].join("\n")
