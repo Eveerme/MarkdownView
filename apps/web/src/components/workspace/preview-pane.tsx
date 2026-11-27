@@ -369,7 +369,7 @@ const PreviewPaneView = ({
               </div>
             </div>
           ) : (
-            <article className="markdown-body markdown-page mx-auto w-full px-8 pt-12 pb-24 sm:px-10">
+            <article className="markdown-body markdown-page mx-auto w-full px-5 pt-6 pb-16 sm:px-6">
               {showFrontMatter && meta.length > 0 ? (
                 <header className="border-border bg-muted/40 mb-8 rounded-lg border px-4 py-3 text-sm">
                   <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1">

@@ -5,7 +5,6 @@ import {
   Outlet,
   createRootRouteWithContext,
 } from "@tanstack/react-router";
-import { TanStackRouterDevtools } from "@tanstack/react-router-devtools";
 import { ThemeProvider } from "next-themes";
 
 import { Toaster } from "@markdownview/ui/components/sonner";
@@ -19,7 +18,7 @@ interface RouterContext {
 const RootLayout = () => (
   <ThemeProvider
     attribute="class"
-    defaultTheme="system"
+    defaultTheme="white"
     disableTransitionOnChange
     scriptProps={{ type: "application/json" }}
     themes={[...themeValues]}
@@ -28,10 +27,7 @@ const RootLayout = () => (
     <Outlet />
     <Toaster position="bottom-right" richColors />
     {import.meta.env.DEV ? (
-      <>
-        <TanStackRouterDevtools position="bottom-left" />
-        <ReactQueryDevtools buttonPosition="bottom-right" />
-      </>
+      <ReactQueryDevtools buttonPosition="bottom-right" />
     ) : null}
   </ThemeProvider>
 );

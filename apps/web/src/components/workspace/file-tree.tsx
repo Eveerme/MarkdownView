@@ -54,7 +54,7 @@ const FileRow = ({ active, file, onOpen, onReveal }: FileRowProps) => (
     <ContextMenu>
       <ContextMenuTrigger className="block w-full">
         <button
-          className={`group flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-xs transition-colors ${
+          className={`group flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-xs transition-colors ${
             active
               ? "bg-sidebar-accent text-sidebar-accent-foreground"
               : "text-muted-foreground hover:bg-sidebar-accent/60 hover:text-sidebar-foreground"
@@ -119,7 +119,7 @@ const DirectoryNode = ({
         <ContextMenuTrigger className="block w-full">
           <button
             aria-expanded={open}
-            className="text-muted-foreground hover:bg-sidebar-accent/60 hover:text-sidebar-foreground flex w-full items-center gap-1.5 rounded-md px-2 py-1.5 text-left text-xs transition-colors"
+            className="text-muted-foreground hover:bg-sidebar-accent/60 hover:text-sidebar-foreground flex w-full items-center gap-1.5 rounded-lg px-2 py-1.5 text-left text-xs transition-colors"
             onClick={() => {
               onToggle(key);
             }}
@@ -150,7 +150,7 @@ const DirectoryNode = ({
         </ContextMenuContent>
       </ContextMenu>
       {open ? (
-        <ul className="border-border/60 ml-3 space-y-0.5 border-l pl-1">
+        <ul className="ml-3 space-y-0.5 pl-1">
           {directory.directories.map((child) => (
             <DirectoryNode
               activeKeys={activeKeys}
@@ -252,7 +252,7 @@ const FolderRoot = ({
           <ContextMenuTrigger className="flex min-w-0 flex-1 items-center">
             <button
               aria-expanded={open}
-              className="text-sidebar-foreground flex min-w-0 flex-1 items-center gap-1.5 rounded-md px-2 py-1.5 text-left text-xs font-medium transition-colors"
+              className="text-sidebar-foreground flex min-w-0 flex-1 items-center gap-1.5 rounded-lg px-2 py-1.5 text-left text-xs font-medium transition-colors"
               onClick={() => {
                 onToggle(key);
               }}
@@ -346,8 +346,8 @@ export const FileTree = ({
   }, [activePath, folders]);
 
   return (
-    <nav className="min-h-0 flex-1 overflow-y-auto px-2 pb-4">
-      <div className="space-y-2">
+    <nav className="subtle-scrollbar min-h-0 flex-1 overflow-y-auto px-1.5 pb-2">
+      <div className="space-y-1">
         {folders.map((folder) => (
           <FolderRoot
             activeKeys={activeKeys}

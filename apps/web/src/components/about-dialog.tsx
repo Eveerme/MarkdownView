@@ -67,13 +67,25 @@ export const AboutDialog = () => {
     }
 
     setStage("checking");
+    const progressToast = `check-update-${Date.now()}`;
+    toast.info("正在检查更新…", {
+      duration: Number.POSITIVE_INFINITY,
+      id: progressToast,
+    });
 
     try {
-      setUpdate(await bridge.checkUpdate());
+      const next = await bridge.checkUpdate();
+
+      toast.dismiss(progressToast);
+      setUpdate(next);
       setChecked(true);
+      toast.success(
+        next === null ? "已是最新版本" : `发现新版本 ${next.version}`
+      );
     } catch (error) {
+      toast.dismiss(progressToast);
       toast.error("检查更新失败", {
-        description: error instanceof Error ? error.message : undefined,
+        description: error instanceof Error ? error.message : "请稍后重试",
       });
     }
 

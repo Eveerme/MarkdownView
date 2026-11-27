@@ -53,7 +53,10 @@ export const OutlineList = ({
   }
 
   return (
-    <nav className="min-h-0 flex-1 overflow-y-auto px-2 pb-4" ref={nav}>
+    <nav
+      className="subtle-scrollbar min-h-0 flex-1 overflow-y-auto px-1.5 pb-2"
+      ref={nav}
+    >
       <ul className="space-y-0.5">
         {items.map((item) => {
           const isActive = item.id === activeId;
@@ -62,7 +65,7 @@ export const OutlineList = ({
             <li key={`${item.line}-${item.id}`}>
               <button
                 aria-current={isActive ? "location" : undefined}
-                className={`flex w-full items-center gap-1.5 rounded-md py-1.5 pr-2 text-left text-xs transition-colors ${
+                className={`flex w-full items-center gap-1.5 rounded-lg py-1.5 pr-2 text-left text-xs transition-colors ${
                   indentation[item.depth - 1] ?? "pl-2"
                 } ${
                   isActive

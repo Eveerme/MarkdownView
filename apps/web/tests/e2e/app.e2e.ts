@@ -15,6 +15,8 @@ const visit = async (page: Page, path: string) => {
 };
 
 interface DesktopScenario {
+  checkError?: string;
+  checkPending?: boolean;
   documents?: Record<string, MarkdownDocument>;
   folders?: MarkdownFolder[];
   openRequest?: MarkdownOpenRequest | null;
@@ -80,7 +82,28 @@ const stubDesktopBridge = (scenario: DesktopScenario = {}) => {
         // The recent list starts empty.
       },
       saveImage: () => ({ relativePath: "image.png" }),
-      checkUpdate: () => scenario.update ?? null,
+      checkUpdate: async () => {
+        if (scenario.checkError !== undefined) {
+          throw new Error(scenario.checkError);
+        }
+
+        if (scenario.checkPending === true) {
+          const deferred = Promise.withResolvers<UpdateInfo | null>();
+
+          const timer = setInterval(() => {
+            if (
+              localStorage.getItem("markdownview:test:finish-check") === "true"
+            ) {
+              clearInterval(timer);
+              deferred.resolve(scenario.update ?? null);
+            }
+          }, 10);
+
+          return await deferred.promise;
+        }
+
+        return scenario.update ?? null;
+      },
       downloadUpdate: async (
         _request: UpdateInfo,
         onProgress?: (progress: DownloadProgress) => void
@@ -280,6 +303,83 @@ test("shows download progress and installs an available update", async ({
       localStorage.getItem("markdownview:test:installed")
     )
   ).toBe("true");
+});
+
+test("checking updates reports progress and success", async ({ page }) => {
+  await page.addInitScript(stubDesktopBridge, { checkPending: true });
+  await visit(page, "/");
+
+  await page.getByRole("button", { name: "关于 MarkdownView" }).click();
+
+  const dialog = page.getByRole("dialog");
+  await expect(dialog.getByRole("button", { name: "检查中…" })).toBeVisible();
+  await expect(page.getByText("正在检查更新…")).toBeVisible();
+
+  await page.evaluate(() => {
+    localStorage.setItem("markdownview:test:finish-check", "true");
+  });
+
+  await expect(
+    page.locator("[data-sonner-toast]").getByText("已是最新版本")
+  ).toBeVisible();
+});
+
+test("checking updates reports failures", async ({ page }) => {
+  await page.addInitScript(stubDesktopBridge, {
+    checkError: "网络不可用",
+  });
+  await visit(page, "/");
+
+  await page.getByRole("button", { name: "关于 MarkdownView" }).click();
+
+  await expect(page.getByText("检查更新失败")).toBeVisible();
+  await expect(page.getByText("网络不可用")).toBeVisible();
+});
+
+test("new documents open in edit mode and keep the tab bar visible", async ({
+  page,
+}) => {
+  await page.addInitScript(() => {
+    localStorage.setItem("markdownview:mode", "preview");
+  });
+  await visit(page, "/");
+
+  await expect(page.getByRole("tablist", { name: "打开的文档" })).toBeVisible();
+  await expect(page.locator("header")).toHaveCount(1);
+  await expect(page.getByRole("navigation", { name: "主导航" })).toBeVisible();
+  await page.getByRole("button", { name: "新建文档" }).click();
+
+  await expect(page.locator(".cm-content")).toBeVisible();
+  await expect(page.locator(".markdown-body")).toHaveCount(0);
+  await expect(
+    page.getByRole("button", { name: "编辑", exact: true })
+  ).toHaveAttribute("aria-pressed", "true");
+  expect(
+    await page.evaluate(() => localStorage.getItem("markdownview:mode"))
+  ).toBe("edit");
+});
+
+test("the pure white theme is the default", async ({ page }) => {
+  await visit(page, "/");
+
+  await expect(page.locator("html")).toHaveClass(/\bwhite\b/u);
+
+  const background = await page.evaluate(() => {
+    const canvas = document.createElement("canvas");
+    const context = canvas.getContext("2d");
+
+    if (context === null) {
+      return "";
+    }
+
+    context.fillStyle = getComputedStyle(document.body).backgroundColor;
+    context.fillRect(0, 0, 1, 1);
+    const [red, green, blue] = context.getImageData(0, 0, 1, 1).data;
+
+    return `${red},${green},${blue}`;
+  });
+
+  expect(background).toBe("255,255,255");
 });
 
 test("the dark theme chosen in settings survives a reload", async ({
@@ -743,6 +843,93 @@ test("the recent list shows the configured number of files", async ({
   await expect(page.locator("aside nav li")).toHaveCount(5);
 });
 
+test("the sidebar can be resized and remembers its width", async ({ page }) => {
+  await page.addInitScript(stubDesktopBridge, {});
+  await visit(page, "/");
+
+  const sidebar = page.locator("aside");
+  const handle = page.getByRole("button", { name: "调整侧边栏宽度" });
+
+  const geometry = await page.evaluate(() => {
+    const sidebarElement = document.querySelector("aside");
+    const contentElement = document.querySelector(".workspace-content");
+    const statusElement = document.querySelector(".workspace-status");
+    const editorElement = document.querySelector(".cm-content");
+    const previewElement = document.querySelector(".markdown-page");
+
+    if (
+      !(sidebarElement instanceof HTMLElement) ||
+      !(contentElement instanceof HTMLElement) ||
+      !(statusElement instanceof HTMLElement) ||
+      !(editorElement instanceof HTMLElement) ||
+      !(previewElement instanceof HTMLElement)
+    ) {
+      return null;
+    }
+
+    return {
+      contentLeft: contentElement.getBoundingClientRect().left,
+      contentRight: contentElement.getBoundingClientRect().right,
+      editorPaddingTop: Number(getComputedStyle(editorElement).paddingTop),
+      previewPaddingTop: Number(getComputedStyle(previewElement).paddingTop),
+      sidebarRight: sidebarElement.getBoundingClientRect().right,
+      statusRight: statusElement.getBoundingClientRect().right,
+      windowWidth: window.innerWidth,
+    };
+  });
+
+  expect(geometry).not.toBeNull();
+  expect(geometry?.contentLeft).toBeCloseTo(geometry?.sidebarRight ?? 0, 0);
+  expect(geometry?.contentRight).toBe(geometry?.windowWidth);
+  expect(geometry?.statusRight).toBe(geometry?.windowWidth);
+  expect(geometry?.previewPaddingTop).toBe(geometry?.editorPaddingTop);
+
+  const before = await sidebar.evaluate(
+    (element) => element.getBoundingClientRect().width
+  );
+
+  expect(before).toBe(248);
+
+  const bounds = await handle.boundingBox();
+
+  if (bounds === null) {
+    throw new Error("Sidebar resize handle is missing");
+  }
+
+  await page.mouse.move(
+    bounds.x + bounds.width / 2,
+    bounds.y + bounds.height / 2
+  );
+  await page.mouse.down();
+  await page.mouse.move(bounds.x + 64, bounds.y + bounds.height / 2);
+  await page.mouse.up();
+
+  await expect
+    .poll(
+      async () =>
+        await sidebar.evaluate(
+          (element) => element.getBoundingClientRect().width
+        )
+    )
+    .toBeGreaterThan(before + 50);
+
+  const stored = await page.evaluate(() =>
+    Number(localStorage.getItem("markdownview:sidebar-width"))
+  );
+
+  expect(stored).toBeGreaterThan(before + 50);
+
+  await page.reload({ waitUntil: "networkidle" });
+  await expect
+    .poll(
+      async () =>
+        await sidebar.evaluate(
+          (element) => element.getBoundingClientRect().width
+        )
+    )
+    .toBeCloseTo(stored, 0);
+});
+
 test("a file opened from the desktop switches the sidebar to the outline", async ({
   page,
 }) => {
@@ -758,7 +945,9 @@ test("a file opened from the desktop switches the sidebar to the outline", async
 
   await expect(page.locator(".markdown-body h1")).toHaveText("外部文件");
   await expect(
-    page.locator("aside").getByRole("button", { name: "大纲" })
+    page.getByRole("navigation", { name: "主导航" }).getByRole("button", {
+      name: "大纲",
+    })
   ).toHaveAttribute("aria-pressed", "true");
   await expect(page.locator("aside nav")).toContainText("外部文件");
 });
@@ -787,7 +976,9 @@ test("a file opened from the recent list keeps the recent view", async ({
 
   await expect(page.locator(".markdown-body h1")).toHaveText("最近文件");
   await expect(
-    page.locator("aside").getByRole("button", { name: "最近" })
+    page.getByRole("navigation", { name: "主导航" }).getByRole("button", {
+      name: "最近",
+    })
   ).toHaveAttribute("aria-pressed", "true");
 });
 
@@ -816,7 +1007,10 @@ test("a file opened from the file tree keeps the files view", async ({
 
   await expect(page.locator(".markdown-body h1")).toHaveText("文件树");
   await expect(
-    page.locator("aside").getByRole("button", { name: "文件", exact: true })
+    page.getByRole("navigation", { name: "主导航" }).getByRole("button", {
+      name: "文件",
+      exact: true,
+    })
   ).toHaveAttribute("aria-pressed", "true");
 });
 

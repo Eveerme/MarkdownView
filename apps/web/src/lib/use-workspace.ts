@@ -693,6 +693,8 @@ export const useWorkspace = () => {
       setActiveId(draft.id);
       setPreviewTarget(null);
       setEditorReveal(null);
+      setMode("edit");
+      localStorage.setItem(modeStorageKey, "edit");
     });
   };
 

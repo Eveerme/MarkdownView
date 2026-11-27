@@ -30,12 +30,12 @@ interface RecentListProps {
 }
 
 const emptyRecent = (onOpenFile: () => void) => (
-  <div className="px-4 py-5">
+  <div className="px-3 py-3">
     <p className="text-muted-foreground text-xs leading-relaxed">
       打开过的 Markdown 文件会出现在这里，方便下次快速回到它们。
     </p>
     <Button
-      className="mt-3 w-full"
+      className="mt-2 w-full"
       onClick={onOpenFile}
       size="sm"
       variant="outline"
@@ -71,7 +71,7 @@ export const RecentList = ({
   }
 
   return (
-    <nav className="min-h-0 flex-1 overflow-y-auto px-2 pb-4">
+    <nav className="subtle-scrollbar min-h-0 flex-1 overflow-y-auto px-1.5 pb-2">
       <ul className="space-y-0.5">
         {files.map((file) => {
           const active = file.path === activePath;
@@ -83,7 +83,7 @@ export const RecentList = ({
               <ContextMenu>
                 <ContextMenuTrigger className="block w-full">
                   <button
-                    className={`group flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left transition-colors ${
+                    className={`group flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left transition-colors ${
                       active
                         ? "bg-sidebar-accent text-sidebar-accent-foreground"
                         : "text-muted-foreground hover:bg-sidebar-accent/60 hover:text-sidebar-foreground"

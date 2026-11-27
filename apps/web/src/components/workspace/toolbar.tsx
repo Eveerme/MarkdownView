@@ -6,8 +6,6 @@ import {
   FolderOpenIcon,
   FolderPlusIcon,
   LoaderCircleIcon,
-  PanelLeftCloseIcon,
-  PanelLeftOpenIcon,
   PencilIcon,
   SaveAllIcon,
   SaveIcon,
@@ -24,9 +22,8 @@ import {
   DropdownMenuTrigger,
 } from "@markdownview/ui/components/dropdown-menu";
 
-import { AboutDialog } from "#src/components/about-dialog.tsx";
-import { SettingsDialog } from "#src/components/workspace/settings-dialog.tsx";
-import type { ViewMode } from "#src/lib/use-workspace.ts";
+import { TabBar } from "#src/components/workspace/tab-bar.tsx";
+import type { DocumentTab, ViewMode } from "#src/lib/use-workspace.ts";
 
 const modes = [
   { icon: PencilIcon, label: "编辑", value: "edit" },
@@ -35,71 +32,54 @@ const modes = [
 ] as const;
 
 interface ToolbarProps {
-  dirty: boolean;
-  fileName: string;
+  activeId: string;
   isDesktop: boolean;
   mode: ViewMode;
+  onCloseTab: (id: string) => void;
+  onExport: (format: ExportFormat) => void;
   onModeChange: (mode: ViewMode) => void;
   onNew: () => void;
   onOpenFile: () => void;
   onOpenFolder: () => void;
-  onExport: (format: ExportFormat) => void;
   onSave: () => void;
   onSaveAs: () => void;
-  onToggleSidebar: () => void;
+  onSelectTab: (id: string) => void;
   saving: boolean;
-  sidebarOpen: boolean;
+  tabs: DocumentTab[];
 }
 
 export const Toolbar = ({
-  dirty,
-  fileName,
+  activeId,
   isDesktop,
   mode,
+  onCloseTab,
+  onExport,
   onModeChange,
   onNew,
   onOpenFile,
   onOpenFolder,
-  onExport,
   onSave,
   onSaveAs,
-  onToggleSidebar,
+  onSelectTab,
   saving,
-  sidebarOpen,
+  tabs,
 }: ToolbarProps) => (
-  <header className="bg-background/85 flex h-11 shrink-0 items-center gap-1 border-b px-2 backdrop-blur-md">
-    <div className="flex items-center gap-0.5">
-      {isDesktop ? (
-        <Button
-          aria-label={sidebarOpen ? "收起侧边栏" : "展开侧边栏"}
-          onClick={onToggleSidebar}
-          size="icon-sm"
-          title="侧边栏"
-          variant="ghost"
-        >
-          {sidebarOpen ? <PanelLeftCloseIcon /> : <PanelLeftOpenIcon />}
-        </Button>
-      ) : null}
-    </div>
+  <header className="workspace-toolbar flex h-full min-w-0 items-center gap-2 px-2">
+    <TabBar
+      activeId={activeId}
+      onClose={onCloseTab}
+      onNew={onNew}
+      onSelect={onSelectTab}
+      tabs={tabs}
+    />
 
-    <div className="flex min-w-0 flex-1 items-center justify-center gap-2 px-2">
-      <span className="text-foreground/85 truncate text-sm">{fileName}</span>
-      {dirty ? (
-        <span
-          aria-label="未保存"
-          className="bg-primary size-1.5 shrink-0 rounded-full"
-          title="未保存"
-        />
-      ) : null}
-    </div>
-
-    <div className="flex items-center gap-1">
-      <fieldset className="bg-muted/80 m-0 flex items-center gap-0 rounded-lg border-0 p-0.5">
+    <div className="flex shrink-0 items-center gap-1">
+      <fieldset className="bg-muted/75 m-0 flex items-center gap-0 rounded-lg border-0 p-0.5">
         <legend className="sr-only">视图模式</legend>
         {modes.map(({ icon: Icon, label, value }) => (
           <button
             aria-pressed={mode === value}
-            className="text-muted-foreground hover:text-foreground aria-pressed:bg-background aria-pressed:text-foreground flex size-6 items-center justify-center rounded-md transition-colors aria-pressed:shadow-sm"
+            className="text-muted-foreground hover:text-foreground aria-pressed:bg-card aria-pressed:text-foreground flex h-6 items-center justify-center gap-1 rounded-md px-1.5 text-xs transition-colors aria-pressed:shadow-xs sm:px-2"
             key={value}
             onClick={() => {
               onModeChange(value);
@@ -108,17 +88,14 @@ export const Toolbar = ({
             type="button"
           >
             <Icon className="size-3.5" />
-            <span className="sr-only">{label}</span>
+            <span className="hidden md:inline">{label}</span>
+            <span className="sr-only md:hidden">{label}</span>
           </button>
         ))}
       </fieldset>
 
       {isDesktop ? (
         <>
-          <span
-            aria-hidden="true"
-            className="bg-border mx-1 hidden h-4 w-px sm:block"
-          />
           <DropdownMenu>
             <DropdownMenuTrigger
               render={<Button size="sm" title="文件" variant="ghost" />}
@@ -176,11 +153,9 @@ export const Toolbar = ({
               <SaveIcon />
             )}
           </Button>
+          <span aria-hidden="true" className="bg-border mx-1 h-4 w-px" />
         </>
       ) : null}
-
-      <SettingsDialog />
-      <AboutDialog />
     </div>
   </header>
 );

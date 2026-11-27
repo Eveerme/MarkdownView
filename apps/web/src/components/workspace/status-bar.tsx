@@ -52,6 +52,21 @@ const saveState = ({
   return filePath === null ? "未保存到磁盘" : "已保存";
 };
 
+const saveTone = ({
+  dirty,
+  saving,
+}: Pick<StatusBarProps, "dirty" | "saving">) => {
+  if (saving) {
+    return "bg-primary/10 text-primary";
+  }
+
+  if (dirty) {
+    return "bg-accent text-accent-foreground";
+  }
+
+  return "bg-success/10 text-success";
+};
+
 export const StatusBar = ({
   content,
   dirty,
@@ -71,24 +86,34 @@ export const StatusBar = ({
   const lines = useMemo(() => countLines(counted), [counted]);
 
   return (
-    <footer className="text-muted-foreground flex h-7 shrink-0 items-center gap-3 border-t px-3 text-xs">
-      <span className="min-w-0 truncate font-mono">
+    <footer className="workspace-status text-muted-foreground flex h-full shrink-0 items-center gap-2 px-2 text-xs">
+      <span className="max-w-[45%] min-w-0 truncate font-mono">
         {isDesktop
           ? (filePath ?? fileName)
           : "浏览器预览 · 文件读写需在桌面版使用"}
       </span>
-      <span className="ml-auto flex shrink-0 items-center gap-3 font-mono tabular-nums">
-        <span title="光标位置">
+      <span
+        className={`shrink-0 rounded-md px-1.5 py-0.5 ${saveTone({
+          dirty,
+          saving,
+        })}`}
+      >
+        {saveState({ dirty, filePath, isDesktop, savedAt, saving })}
+      </span>
+      <span className="ml-auto flex shrink-0 items-center gap-1 font-mono tabular-nums">
+        <span className="bg-muted/60 rounded-md px-1.5 py-0.5" title="光标位置">
           {cursor.line}:{cursor.column}
         </span>
-        {selected > 0 ? <span>选中 {selected} 字符</span> : null}
-        <span>{words} 字</span>
-        <span className="hidden sm:inline">{characters} 字符</span>
-        <span>{lines} 行</span>
-        <span aria-hidden="true" className="bg-border h-3 w-px" />
-        <span>
-          {saveState({ dirty, filePath, isDesktop, savedAt, saving })}
+        {selected > 0 ? (
+          <span className="bg-muted/60 rounded-md px-1.5 py-0.5">
+            选中 {selected} 字符
+          </span>
+        ) : null}
+        <span className="bg-muted/60 rounded-md px-1.5 py-0.5">{words} 字</span>
+        <span className="bg-muted/60 hidden rounded-md px-1.5 py-0.5 sm:inline">
+          {characters} 字符
         </span>
+        <span className="bg-muted/60 rounded-md px-1.5 py-0.5">{lines} 行</span>
       </span>
     </footer>
   );

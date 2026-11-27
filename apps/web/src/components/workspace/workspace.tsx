@@ -11,9 +11,9 @@ import type { CSSProperties, PointerEvent as ReactPointerEvent } from "react";
 import { ConfirmDialog } from "#src/components/workspace/confirm-dialog.tsx";
 import { EditorPane } from "#src/components/workspace/editor-pane.tsx";
 import { FileSidebar } from "#src/components/workspace/file-sidebar.tsx";
+import { NavigationRail } from "#src/components/workspace/navigation-rail.tsx";
 import { PreviewPane } from "#src/components/workspace/preview-pane.tsx";
 import { StatusBar } from "#src/components/workspace/status-bar.tsx";
-import { TabBar } from "#src/components/workspace/tab-bar.tsx";
 import { Toolbar } from "#src/components/workspace/toolbar.tsx";
 import { readingLineOf } from "#src/lib/reading-line.ts";
 import { useActiveOutline } from "#src/lib/use-active-outline.ts";
@@ -35,6 +35,14 @@ export const Workspace = () => {
   const workspace = useWorkspace();
   const { settings, update } = useSettings();
   const [ratio, setRatio] = useState(settings.splitRatio);
+
+  const [sidebarWidth, setSidebarWidth] = useState(() => {
+    const raw = localStorage.getItem("markdownview:sidebar-width");
+    const stored = raw === null || raw.trim() === "" ? Number.NaN : Number(raw);
+
+    return clamp(Number.isFinite(stored) ? stored : 248, 176, 360);
+  });
+
   const [editorView, setEditorView] = useState<EditorView | null>(null);
 
   const [previewElement, setPreviewElement] = useState<HTMLDivElement | null>(
@@ -42,7 +50,9 @@ export const Workspace = () => {
   );
 
   const panes = useRef<HTMLDivElement>(null);
+  const workspaceBody = useRef<HTMLDivElement>(null);
   const ratioRef = useRef(settings.splitRatio);
+  const sidebarWidthRef = useRef(sidebarWidth);
 
   // Typing must not wait for the preview to re-parse the whole document.
   const previewContent = useDeferredValue(workspace.content);
@@ -109,6 +119,10 @@ export const Workspace = () => {
     "--reading-measure": `${settings.readingWidth}ch`,
   };
 
+  const bodyStyle: CustomProperties = {
+    "--sidebar-width": `${sidebarWidth}px`,
+  };
+
   const applyRatio = (next: number) => {
     const rounded = Math.round(clamp(next, 0.28, 0.72) * 1000) / 1000;
 
@@ -156,6 +170,47 @@ export const Workspace = () => {
     window.addEventListener("pointerup", stop);
   };
 
+  const startSidebarResize = (event: ReactPointerEvent<HTMLButtonElement>) => {
+    const container = workspaceBody.current;
+
+    if (container === null) {
+      return;
+    }
+
+    event.preventDefault();
+
+    const bounds = container.getBoundingClientRect();
+    const startX = event.clientX;
+    const startWidth = sidebarWidthRef.current;
+
+    const move = (moveEvent: PointerEvent) => {
+      const highest = Math.min(360, bounds.width - 320);
+
+      const next = clamp(
+        startWidth + moveEvent.clientX - startX,
+        176,
+        Math.max(176, highest)
+      );
+
+      sidebarWidthRef.current = next;
+      setSidebarWidth(next);
+    };
+
+    const stop = () => {
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", stop);
+      document.body.classList.remove("cursor-col-resize", "select-none");
+      localStorage.setItem(
+        "markdownview:sidebar-width",
+        String(sidebarWidthRef.current)
+      );
+    };
+
+    document.body.classList.add("cursor-col-resize", "select-none");
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", stop);
+  };
+
   const handleImagePaste = async (file: File) => {
     const snippet = await workspace.actions.saveImage(file);
 
@@ -163,15 +218,32 @@ export const Workspace = () => {
   };
 
   return (
-    <div
-      className="grid h-svh grid-rows-[auto_auto_minmax(0,1fr)_auto] overflow-hidden"
-      style={stageStyle}
-    >
+    <div className="workspace-shell" style={stageStyle}>
+      <NavigationRail
+        isDesktop={workspace.isDesktop}
+        onNew={() => {
+          workspace.actions.newDocument();
+        }}
+        onSidebarViewChange={(view) => {
+          workspace.setSidebarView(view);
+        }}
+        onToggleSidebar={() => {
+          workspace.setSidebarOpen(!workspace.sidebarOpen);
+        }}
+        sidebarOpen={workspace.sidebarOpen}
+        sidebarView={workspace.sidebarView}
+      />
+
       <Toolbar
-        dirty={workspace.dirty}
-        fileName={workspace.fileName}
+        activeId={workspace.activeId}
         isDesktop={workspace.isDesktop}
         mode={workspace.mode}
+        onCloseTab={(id) => {
+          workspace.actions.closeTab(id);
+        }}
+        onExport={(format) => {
+          void workspace.actions.exportDocument(format);
+        }}
         onModeChange={(next) => {
           workspace.setMode(next);
         }}
@@ -184,34 +256,28 @@ export const Workspace = () => {
         onOpenFolder={() => {
           workspace.actions.openFolder();
         }}
-        onExport={(format) => {
-          void workspace.actions.exportDocument(format);
-        }}
         onSave={() => {
           void workspace.actions.save();
         }}
         onSaveAs={() => {
           void workspace.actions.saveAs();
         }}
-        onToggleSidebar={() => {
-          workspace.setSidebarOpen(!workspace.sidebarOpen);
-        }}
-        saving={workspace.saving}
-        sidebarOpen={workspace.sidebarOpen}
-      />
-
-      <TabBar
-        activeId={workspace.activeId}
-        onClose={(id) => {
-          workspace.actions.closeTab(id);
-        }}
-        onSelect={(id) => {
+        onSelectTab={(id) => {
           workspace.actions.switchTab(id);
         }}
+        saving={workspace.saving}
         tabs={workspace.tabs}
       />
 
-      <div className="flex min-h-0 min-w-0">
+      <div
+        className={`workspace-body ${
+          workspace.isDesktop && workspace.sidebarOpen
+            ? ""
+            : "workspace-body--wide"
+        }`}
+        ref={workspaceBody}
+        style={bodyStyle}
+      >
         {workspace.isDesktop && workspace.sidebarOpen ? (
           <FileSidebar
             activeOutlineId={activeOutlineId}
@@ -248,17 +314,28 @@ export const Workspace = () => {
             onToggleFolder={(key) => {
               workspace.actions.toggleFolder(key);
             }}
-            onViewChange={(view) => {
-              workspace.setSidebarView(view);
-            }}
             outline={workspace.outline}
             recentFiles={workspace.recentFiles}
             view={workspace.sidebarView}
           />
         ) : null}
 
+        {workspace.isDesktop && workspace.sidebarOpen ? (
+          <button
+            aria-label="调整侧边栏宽度"
+            className="sidebar-resizer"
+            onPointerDown={startSidebarResize}
+            title="拖动调整侧栏宽度"
+            type="button"
+          >
+            <span aria-hidden="true" className="sidebar-resizer-grip" />
+          </button>
+        ) : null}
+
         <div
-          className={`flex min-h-0 min-w-0 flex-1 ${split ? "split-panes" : ""}`}
+          className={`workspace-content workspace-panes ${
+            split ? "split-panes" : ""
+          }`}
           ref={panes}
         >
           {workspace.mode === "preview" ? null : (
@@ -288,7 +365,7 @@ export const Workspace = () => {
           {split ? (
             <button
               aria-label="调整分栏宽度"
-              className="group relative w-1.5 shrink-0 cursor-col-resize border-0 bg-transparent p-0"
+              className="workspace-divider group"
               onDoubleClick={() => {
                 applyRatio(0.5);
                 update({ splitRatio: ratioRef.current });
@@ -297,10 +374,8 @@ export const Workspace = () => {
               title="拖动调整宽度，双击恢复 50%"
               type="button"
             >
-              <span
-                aria-hidden="true"
-                className="bg-border group-hover:bg-primary/50 absolute inset-y-0 left-1/2 w-px -translate-x-1/2 transition-colors"
-              />
+              <span aria-hidden="true" className="workspace-divider-track" />
+              <span aria-hidden="true" className="workspace-divider-grip" />
             </button>
           ) : null}
 

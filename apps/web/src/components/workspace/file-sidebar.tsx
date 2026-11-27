@@ -1,9 +1,4 @@
-import {
-  ClockIcon,
-  FolderPlusIcon,
-  FolderTreeIcon,
-  ListTreeIcon,
-} from "lucide-react";
+import { FolderPlusIcon } from "lucide-react";
 import type { ReactNode } from "react";
 
 import type {
@@ -36,23 +31,21 @@ interface FileSidebarProps {
   onRevealFile: (path: string) => void;
   onRevealFolder: (path: string) => void;
   onToggleFolder: (key: string) => void;
-  onViewChange: (view: SidebarView) => void;
 }
 
-const viewButton = (active: boolean) =>
-  `flex h-6 items-center gap-1 rounded-md px-1.5 text-xs transition-colors ${
-    active
-      ? "bg-background text-foreground shadow-sm"
-      : "text-muted-foreground hover:text-foreground"
-  }`;
+const viewLabels = {
+  files: "文件",
+  outline: "大纲",
+  recent: "最近",
+} as const;
 
 const emptyLibrary = (onOpenFolder: () => void) => (
-  <div className="px-4 py-5">
+  <div className="px-3 py-3">
     <p className="text-muted-foreground text-xs leading-relaxed">
       打开一个文件夹，所有 Markdown 笔记都会列在这里。可以同时打开多个文件夹。
     </p>
     <Button
-      className="mt-3 w-full"
+      className="mt-2 w-full"
       onClick={onOpenFolder}
       size="sm"
       variant="outline"
@@ -81,7 +74,6 @@ export const FileSidebar = ({
   onRevealFile,
   onRevealFolder,
   onToggleFolder,
-  onViewChange,
 }: FileSidebarProps) => {
   let body: ReactNode;
 
@@ -123,50 +115,13 @@ export const FileSidebar = ({
   }
 
   return (
-    <aside className="bg-sidebar flex w-60 shrink-0 flex-col border-r">
-      <div className="flex h-10 items-center gap-1 px-2">
-        <div className="bg-muted/80 flex items-center gap-0 rounded-lg p-0.5">
-          <button
-            aria-pressed={view === "recent"}
-            className={viewButton(view === "recent")}
-            onClick={() => {
-              onViewChange("recent");
-            }}
-            title="最近打开"
-            type="button"
-          >
-            <ClockIcon className="size-3" />
-            最近
-          </button>
-          <button
-            aria-pressed={view === "files"}
-            className={viewButton(view === "files")}
-            onClick={() => {
-              onViewChange("files");
-            }}
-            title="文件树"
-            type="button"
-          >
-            <FolderTreeIcon className="size-3" />
-            文件
-          </button>
-          <button
-            aria-pressed={view === "outline"}
-            className={viewButton(view === "outline")}
-            onClick={() => {
-              onViewChange("outline");
-            }}
-            title="目录大纲"
-            type="button"
-          >
-            <ListTreeIcon className="size-3" />
-            大纲
-          </button>
-        </div>
-
+    <aside className="workspace-sidebar bg-sidebar flex w-full min-w-0 flex-1 flex-col">
+      <div className="flex h-10 shrink-0 items-center justify-between gap-2 px-2">
+        <span className="text-foreground/80 truncate text-xs font-medium">
+          {viewLabels[view]}
+        </span>
         <Button
           aria-label="打开文件夹"
-          className="ml-auto"
           onClick={onOpenFolder}
           size="icon-xs"
           title="打开文件夹"

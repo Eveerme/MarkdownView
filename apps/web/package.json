@@ -23,7 +23,6 @@
     "@tanstack/react-query": "catalog:",
     "@tanstack/react-query-devtools": "catalog:",
     "@tanstack/react-router": "catalog:",
-    "@tanstack/react-router-devtools": "catalog:",
     "@tauri-apps/api": "catalog:",
     "@uiw/react-codemirror": "catalog:",
     "github-slugger": "catalog:",

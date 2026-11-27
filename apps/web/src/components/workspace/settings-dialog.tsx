@@ -26,8 +26,8 @@ const Section = ({
   children: ReactNode;
   title: string;
 }) => (
-  <section className="border-border border-b pb-2 last:border-b-0">
-    <h3 className="text-muted-foreground pt-3 pb-1 text-xs font-medium">
+  <section className="border-border border-b pb-1 last:border-b-0">
+    <h3 className="text-muted-foreground pt-2 pb-1 text-xs font-medium">
       {title}
     </h3>
     {children}
@@ -45,7 +45,7 @@ const ToggleRow = ({
   onChange: (value: boolean) => void;
   value: boolean;
 }) => (
-  <div className="flex items-start justify-between gap-6 py-2.5">
+  <div className="flex items-start justify-between gap-6 py-2">
     <div className="min-w-0">
       <div className="font-medium">{label}</div>
       <p className="text-muted-foreground mt-0.5 text-xs leading-relaxed">
@@ -78,7 +78,7 @@ const SliderRow = ({
   suffix: string;
   value: number;
 }) => (
-  <div className="py-2.5">
+  <div className="py-2">
     <div className="flex items-baseline justify-between gap-4">
       <div className="min-w-0">
         <div className="font-medium">{label}</div>
@@ -93,7 +93,7 @@ const SliderRow = ({
     </div>
     <Slider
       aria-label={label}
-      className="mt-3"
+      className="mt-2"
       max={max}
       min={min}
       onValueChange={(next) => {
@@ -187,7 +187,7 @@ export const SettingsDialog = () => {
         <Settings2Icon />
       </DialogTrigger>
       <DialogContent
-        className="max-h-[85svh] overflow-y-auto sm:max-w-lg"
+        className="max-h-[85svh] overflow-y-auto sm:max-w-xl"
         scrollbar="subtle"
       >
         <DialogHeader>
