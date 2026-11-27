@@ -397,7 +397,10 @@ pub async fn download_update(
 ) -> Result<DownloadedUpdate, String> {
     let data_dir = app.path().app_data_dir().map_err(|error| error.to_string())?;
 
-    Ok(blocking(move || updater::download_update_blocking(&info, &data_dir)).await??)
+    Ok(blocking(move || {
+        updater::download_update_blocking(&app, &info, &data_dir)
+    })
+    .await??)
 }
 
 #[tauri::command(rename_all = "camelCase")]
@@ -408,9 +411,18 @@ pub fn install_update(app: AppHandle, path: String) -> Result<(), String> {
         return Err("安装包不存在".to_string());
     }
 
-    app.opener()
-        .open_path(files::to_string(&target), None::<&str>)
-        .map_err(|error| error.to_string())
+    updater::launch_installer(&target)?;
+
+    // The installer replaces this executable, so this instance must let go of
+    // it. A short delay keeps the renderer's success toast on screen.
+    let handle = app.clone();
+
+    std::thread::spawn(move || {
+        std::thread::sleep(std::time::Duration::from_millis(600));
+        handle.exit(0);
+    });
+
+    Ok(())
 }
 
 #[tauri::command(rename_all = "camelCase")]

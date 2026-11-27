@@ -2,10 +2,12 @@ import { expect, test } from "@playwright/test";
 import type { Page } from "@playwright/test";
 
 import type {
+  DownloadProgress,
   MarkdownDocument,
   MarkdownFolder,
   MarkdownOpenRequest,
   RecentFile,
+  UpdateInfo,
 } from "@markdownview/desktop-contract";
 
 const visit = async (page: Page, path: string) => {
@@ -17,6 +19,7 @@ interface DesktopScenario {
   folders?: MarkdownFolder[];
   openRequest?: MarkdownOpenRequest | null;
   recent?: RecentFile[];
+  update?: UpdateInfo | null;
 }
 
 /**
@@ -74,8 +77,26 @@ const stubDesktopBridge = (scenario: DesktopScenario = {}) => {
         // The recent list starts empty.
       },
       saveImage: () => ({ relativePath: "image.png" }),
-      checkUpdate: () => null,
-      downloadUpdate: () => ({ path: "update.exe" }),
+      checkUpdate: () => scenario.update ?? null,
+      downloadUpdate: async (
+        _request: UpdateInfo,
+        onProgress?: (progress: DownloadProgress) => void
+      ) => {
+        onProgress?.({ downloaded: 512, total: 1024 });
+
+        const deferred = Promise.withResolvers<{ path: string }>();
+
+        const timer = setInterval(() => {
+          if (
+            localStorage.getItem("markdownview:test:allow-install") === "true"
+          ) {
+            clearInterval(timer);
+            deferred.resolve({ path: "update.exe" });
+          }
+        }, 10);
+
+        return await deferred.promise;
+      },
       installUpdate: () => {
         localStorage.setItem("markdownview:test:installed", "true");
       },
@@ -198,6 +219,47 @@ test("the about dialog shows the version and repository", async ({ page }) => {
   await expect(
     dialog.getByRole("link", { name: /github\.com\/Eveerme\/MarkdownView/u })
   ).toHaveAttribute("href", "https://github.com/Eveerme/MarkdownView");
+});
+
+test("shows download progress and installs an available update", async ({
+  page,
+}) => {
+  await page.addInitScript(stubDesktopBridge, {
+    update: {
+      version: "9.9.9",
+      notes: "测试更新",
+      date: "2026-01-01",
+      sha256: "0".repeat(64),
+      size: 1024,
+      url: "https://example.invalid/update.exe",
+    },
+  });
+  await visit(page, "/");
+
+  await page.getByRole("button", { name: "关于 MarkdownView" }).click();
+
+  const dialog = page.getByRole("dialog");
+  await expect(dialog).toContainText("发现新版本 9.9.9");
+
+  await dialog.getByRole("button", { name: "下载并安装" }).click();
+
+  await expect(dialog.getByRole("progressbar")).toHaveAttribute("value", "50");
+  await expect(
+    dialog.getByRole("button", { name: "下载中 50%" })
+  ).toBeVisible();
+
+  await page.evaluate(() => {
+    localStorage.setItem("markdownview:test:allow-install", "true");
+  });
+
+  await expect(
+    page.getByText("安装程序已启动，应用即将关闭；装完后重新打开即可")
+  ).toBeVisible();
+  expect(
+    await page.evaluate(() =>
+      localStorage.getItem("markdownview:test:installed")
+    )
+  ).toBe("true");
 });
 
 test("the dark theme chosen in settings survives a reload", async ({

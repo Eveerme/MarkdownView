@@ -5,6 +5,7 @@ import { z } from "zod";
 import type { ZodType } from "zod";
 
 import {
+  downloadProgressSchema,
   downloadedUpdateSchema,
   markdownDocumentSchema,
   markdownFolderSchema,
@@ -19,7 +20,6 @@ import {
 } from "@markdownview/desktop-contract";
 import type {
   DesktopApi,
-  DownloadUpdateRequest,
   ExportDocumentRequest,
   ResolveLinkRequest,
   SaveFileAsRequest,
@@ -133,10 +133,25 @@ const tauriDesktop: DesktopApi = {
   checkUpdate: async () =>
     await call(desktopCommands.checkUpdate, updateInfoSchema.nullable()),
 
-  downloadUpdate: async (request: DownloadUpdateRequest) =>
-    await call(desktopCommands.downloadUpdate, downloadedUpdateSchema, {
-      info: request,
-    }),
+  downloadUpdate: async (request, onProgress) => {
+    const unlisten = onProgress
+      ? await listen(desktopCommands.downloadProgressEvent, (event) => {
+          onProgress(downloadProgressSchema.parse(event.payload));
+        })
+      : null;
+
+    try {
+      return await call(
+        desktopCommands.downloadUpdate,
+        downloadedUpdateSchema,
+        {
+          info: request,
+        }
+      );
+    } finally {
+      unlisten?.();
+    }
+  },
 
   installUpdate: async (path) => {
     await call(desktopCommands.installUpdate, z.null(), { path });

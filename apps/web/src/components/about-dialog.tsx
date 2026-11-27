@@ -4,6 +4,7 @@ import { toast } from "sonner";
 
 import type {
   DesktopVersions,
+  DownloadProgress,
   UpdateInfo,
 } from "@markdownview/desktop-contract";
 import { Button } from "@markdownview/ui/components/button";
@@ -28,13 +29,35 @@ import { useSettings } from "#src/lib/use-settings.tsx";
 
 const repositoryLabel = "github.com/Eveerme/MarkdownView";
 
+type UpdateStage = "idle" | "checking" | "downloading" | "installing";
+
+const actionLabel = (stage: UpdateStage, percent: number) => {
+  if (stage === "downloading") {
+    return `下载中 ${percent}%`;
+  }
+
+  if (stage === "installing") {
+    return "正在安装…";
+  }
+
+  return "下载并安装";
+};
+
 export const AboutDialog = () => {
   const { settings } = useSettings();
   const [versions, setVersions] = useState<DesktopVersions | null>(null);
   const [update, setUpdate] = useState<UpdateInfo | null>(null);
-  const [busy, setBusy] = useState(false);
+
+  const [stage, setStage] = useState<UpdateStage>("idle");
+  const [progress, setProgress] = useState<DownloadProgress | null>(null);
   const [checked, setChecked] = useState(false);
   const [open, setOpen] = useState(false);
+  const busy = stage !== "idle";
+
+  const percent =
+    progress === null || progress.total === 0
+      ? 0
+      : Math.min(100, Math.round((progress.downloaded / progress.total) * 100));
 
   const check = useCallback(async () => {
     const bridge = desktop();
@@ -43,7 +66,7 @@ export const AboutDialog = () => {
       return;
     }
 
-    setBusy(true);
+    setStage("checking");
 
     try {
       setUpdate(await bridge.checkUpdate());
@@ -54,7 +77,7 @@ export const AboutDialog = () => {
       });
     }
 
-    setBusy(false);
+    setStage("idle");
   }, []);
 
   const install = async () => {
@@ -64,19 +87,22 @@ export const AboutDialog = () => {
       return;
     }
 
-    setBusy(true);
+    setProgress({ downloaded: 0, total: update.size });
+    setStage("downloading");
 
     try {
-      const downloaded = await bridge.downloadUpdate(update);
+      const downloaded = await bridge.downloadUpdate(update, setProgress);
+      setStage("installing");
       await bridge.installUpdate(downloaded.path);
-      toast.success("安装程序已打开，完成后请重启应用");
+      toast.success("安装程序已启动，应用即将关闭；装完后重新打开即可");
     } catch (error) {
       toast.error("更新失败", {
         description: error instanceof Error ? error.message : undefined,
       });
     }
 
-    setBusy(false);
+    setStage("idle");
+    setProgress(null);
   };
 
   const onOpenChange = (next: boolean) => {
@@ -156,44 +182,55 @@ export const AboutDialog = () => {
           </dd>
         </dl>
 
-        <div className="border-border flex items-center justify-between gap-3 rounded-lg border px-3 py-2.5 text-xs">
-          <div className="min-w-0">
-            {update === null ? (
-              <span className="text-muted-foreground">
-                {checked ? "已是最新版本" : "尚未检查更新"}
-              </span>
-            ) : (
-              <div className="min-w-0">
-                <span className="font-medium">发现新版本 {update.version}</span>
-                <p className="text-muted-foreground mt-0.5 line-clamp-2">
-                  {update.notes}
-                </p>
-              </div>
-            )}
-          </div>
-          <div className="flex shrink-0 gap-1.5">
-            <Button
-              disabled={busy}
-              onClick={() => {
-                void check();
-              }}
-              size="sm"
-              variant="outline"
-            >
-              检查
-            </Button>
-            {update === null ? null : (
+        <div className="border-border rounded-lg border px-3 py-2.5 text-xs">
+          <div className="flex items-center justify-between gap-3">
+            <div className="min-w-0">
+              {update === null ? (
+                <span className="text-muted-foreground">
+                  {checked ? "已是最新版本" : "尚未检查更新"}
+                </span>
+              ) : (
+                <div className="min-w-0">
+                  <span className="font-medium">
+                    发现新版本 {update.version}
+                  </span>
+                  <p className="text-muted-foreground mt-0.5 line-clamp-2">
+                    {update.notes}
+                  </p>
+                </div>
+              )}
+            </div>
+            <div className="flex shrink-0 gap-1.5">
               <Button
                 disabled={busy}
                 onClick={() => {
-                  void install();
+                  void check();
                 }}
                 size="sm"
+                variant="outline"
               >
-                下载并安装
+                {stage === "checking" ? "检查中…" : "检查"}
               </Button>
-            )}
+              {update === null ? null : (
+                <Button
+                  disabled={busy}
+                  onClick={() => {
+                    void install();
+                  }}
+                  size="sm"
+                >
+                  {actionLabel(stage, percent)}
+                </Button>
+              )}
+            </div>
           </div>
+          {stage === "downloading" ? (
+            <progress
+              className="accent-primary mt-2 block h-1.5 w-full rounded-full"
+              max={100}
+              value={percent}
+            />
+          ) : null}
         </div>
 
         <div className="bg-muted/50 flex items-center justify-between gap-3 rounded-lg px-3 py-2.5 text-xs">

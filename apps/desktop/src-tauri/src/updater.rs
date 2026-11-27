@@ -1,14 +1,22 @@
 //! Static-manifest updater: cached checks, SHA-256 verified download, installer handoff.
 
-use std::{fs, io::Read, path::Path, time::Duration};
+use std::{
+    fs,
+    io::{Read, Write},
+    path::Path,
+    time::Duration,
+};
 
-use serde_json::Value;
+use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
+use tauri::Emitter;
 use ureq::AgentBuilder;
 
 use crate::{models::{DownloadedUpdate, UpdateInfo}, persistence};
 
 const MANIFEST_URL: &str = "https://eveerme.github.io/MarkdownView/latest.json";
+const DOWNLOAD_PROGRESS_EVENT: &str = "download-progress";
+const CHUNK_SIZE: usize = 64 * 1024;
 pub const CACHE_MS: i64 = 6 * 60 * 60 * 1000;
 pub const REQUEST_GAP_MS: i64 = 60 * 1000;
 
@@ -112,6 +120,7 @@ pub fn fetch_manifest() -> Result<UpdateInfo, String> {
 }
 
 pub fn download_update_blocking(
+    app: &tauri::AppHandle,
     info: &UpdateInfo,
     data_dir: &Path,
 ) -> Result<DownloadedUpdate, String> {
@@ -127,26 +136,90 @@ pub fn download_update_blocking(
         return Err(format!("下载更新失败（HTTP {}）", response.status()));
     }
 
-    let mut bytes = Vec::new();
-    response
-        .into_reader()
-        .read_to_end(&mut bytes)
-        .map_err(|error| error.to_string())?;
-
-    let digest = hex::encode(Sha256::digest(&bytes));
-
-    if digest != info.sha256.to_lowercase() {
-        return Err("安装包校验失败，请稍后重试".to_string());
-    }
-
     let directory = data_dir.join("updates");
     fs::create_dir_all(&directory).map_err(|error| error.to_string())?;
     let target = directory.join(format!("MarkdownView-{}.exe", info.version));
-    fs::write(&target, &bytes).map_err(|error| error.to_string())?;
+    let partial = directory.join(format!("MarkdownView-{}.exe.part", info.version));
+
+    let total = u64::try_from(info.size).unwrap_or(0);
+    let mut hasher = Sha256::new();
+    let mut reader = response.into_reader();
+    let mut buffer = [0_u8; CHUNK_SIZE];
+    let mut downloaded = 0_u64;
+
+    // Stream to a partial file so progress can be reported without buffering
+    // the whole installer in memory. The partial file is only promoted after
+    // its digest matches the manifest.
+    let result = (|| -> Result<(), String> {
+        let mut file = fs::File::create(&partial).map_err(|error| error.to_string())?;
+
+        loop {
+            let read = reader.read(&mut buffer).map_err(|error| error.to_string())?;
+
+            if read == 0 {
+                break;
+            }
+
+            let chunk = &buffer[..read];
+            file.write_all(chunk).map_err(|error| error.to_string())?;
+            hasher.update(chunk);
+            downloaded += read as u64;
+            let _ = app.emit(
+                DOWNLOAD_PROGRESS_EVENT,
+                json!({ "downloaded": downloaded, "total": total }),
+            );
+        }
+
+        file.flush().map_err(|error| error.to_string())?;
+        drop(file);
+
+        if hex::encode(hasher.finalize()) != info.sha256.to_lowercase() {
+            return Err("安装包校验失败，请稍后重试".to_string());
+        }
+
+        if target.exists() {
+            fs::remove_file(&target).map_err(|error| error.to_string())?;
+        }
+
+        fs::rename(&partial, &target).map_err(|error| error.to_string())?;
+        Ok(())
+    })();
+
+    if result.is_err() {
+        let _ = fs::remove_file(&partial);
+    }
+
+    result?;
 
     Ok(DownloadedUpdate {
         path: crate::files::to_string(&target),
     })
+}
+
+/// Launch the installer detached from the app. Shell file associations are not
+/// involved, so this works even without a registered handler for `.exe`.
+pub fn launch_installer(path: &Path) -> Result<(), String> {
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+
+        const DETACHED_PROCESS: u32 = 0x00000008;
+        const CREATE_NEW_PROCESS_GROUP: u32 = 0x00000200;
+
+        std::process::Command::new(path)
+            .creation_flags(DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP)
+            .spawn()
+            .map(|_| ())
+            .map_err(|error| format!("启动安装程序失败：{error}"))
+    }
+
+    #[cfg(not(windows))]
+    {
+        std::process::Command::new(path)
+            .spawn()
+            .map(|_| ())
+            .map_err(|error| format!("启动安装程序失败：{error}"))
+    }
 }
 
 pub fn now_ms() -> i64 {

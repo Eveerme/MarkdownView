@@ -28,6 +28,7 @@ export const desktopCommands = {
   installUpdate: "install_update",
   exportDocument: "export_document",
   openRequestEvent: "open-request",
+  downloadProgressEvent: "download-progress",
 } as const;
 
 /** The custom scheme the renderer loads local note images from. */
@@ -153,6 +154,13 @@ export const downloadedUpdateSchema = z.object({
 
 export type DownloadedUpdate = z.infer<typeof downloadedUpdateSchema>;
 
+export const downloadProgressSchema = z.object({
+  downloaded: z.number().int().nonnegative(),
+  total: z.number().int().nonnegative(),
+});
+
+export type DownloadProgress = z.infer<typeof downloadProgressSchema>;
+
 export const exportDocumentRequestSchema = z.object({
   format: z.literal("html"),
   html: z.string().min(1),
@@ -186,7 +194,10 @@ export interface DesktopApi {
   clearRecentFiles: () => Promise<void>;
   saveImage: (request: SaveImageRequest) => Promise<SavedImage>;
   checkUpdate: () => Promise<UpdateInfo | null>;
-  downloadUpdate: (request: DownloadUpdateRequest) => Promise<DownloadedUpdate>;
+  downloadUpdate: (
+    request: DownloadUpdateRequest,
+    onProgress?: (progress: DownloadProgress) => void
+  ) => Promise<DownloadedUpdate>;
   installUpdate: (path: string) => Promise<void>;
   exportDocument: (
     request: ExportDocumentRequest
