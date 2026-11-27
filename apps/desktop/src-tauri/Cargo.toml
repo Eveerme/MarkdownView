@@ -1,6 +1,6 @@
 [package]
 name = "markdownview"
-version = "1.1.1"
+version = "1.1.2"
 description = "A focused local Markdown editor"
 authors = ["MarkdownView"]
 edition = "2021"
