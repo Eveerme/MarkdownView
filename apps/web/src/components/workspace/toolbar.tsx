@@ -3,7 +3,6 @@ import {
   EyeIcon,
   FileCodeIcon,
   FilePlusIcon,
-  FileTextIcon,
   FolderOpenIcon,
   FolderPlusIcon,
   LoaderCircleIcon,
@@ -14,7 +13,7 @@ import {
   SaveIcon,
 } from "lucide-react";
 
-import type { ExportFormat } from "@markdownview/electron";
+import type { ExportFormat } from "@markdownview/desktop-contract";
 import { Button } from "@markdownview/ui/components/button";
 import {
   DropdownMenu,
@@ -161,14 +160,6 @@ export const Toolbar = ({
               >
                 <FileCodeIcon />
                 导出 HTML…
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={() => {
-                  onExport("pdf");
-                }}
-              >
-                <FileTextIcon />
-                导出 PDF…
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>

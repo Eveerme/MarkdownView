@@ -6,7 +6,10 @@ import {
 } from "lucide-react";
 import type { ReactNode } from "react";
 
-import type { MarkdownFolder, RecentFile } from "@markdownview/electron";
+import type {
+  MarkdownFolder,
+  RecentFile,
+} from "@markdownview/desktop-contract";
 import { Button } from "@markdownview/ui/components/button";
 
 import { FileTree } from "#src/components/workspace/file-tree.tsx";

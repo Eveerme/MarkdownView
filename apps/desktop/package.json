@@ -1,28 +1,17 @@
 {
   "name": "@markdownview/desktop",
-  "version": "0.4.2",
+  "version": "0.5.0",
   "private": true,
   "description": "一个专注写作的本地 Markdown 编辑器",
   "author": "MarkdownView",
   "type": "module",
-  "main": "./dist/main/index.js",
-  "imports": {
-    "#src/*": "./src/*"
-  },
   "scripts": {
-    "build": "vp build --config vite.main.config.ts && vp build --config vite.preload.config.ts",
-    "package": "vp run --filter @markdownview/web build && node scripts/copy-renderer.ts && vp run build && electron-builder --config electron-builder.yml",
-    "dev": "vp run build && node scripts/dev.ts"
+    "dev": "tauri dev",
+    "build": "tauri build"
   },
   "devDependencies": {
-    "@markdownview/config": "workspace:*",
-    "@markdownview/electron": "workspace:*",
+    "@tauri-apps/cli": "catalog:",
     "@types/node": "catalog:",
-    "electron": "catalog:",
-    "electron-builder": "catalog:",
-    "es-toolkit": "catalog:",
-    "typescript": "catalog:",
-    "vite-plus": "catalog:",
-    "zod": "catalog:"
+    "typescript": "catalog:"
   }
 }

@@ -1,0 +1,71 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+  id-token: write
+  pages: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 12.14.0
+
+      - uses: actions/setup-node@v4
+        with:
+          cache: pnpm
+          node-version: 24.22.0
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: apps/desktop/src-tauri
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Package desktop
+        working-directory: apps/desktop
+        run: pnpm exec tauri build
+
+      - name: Write update manifest
+        shell: pwsh
+        run: |
+          $exe = Get-ChildItem apps/desktop/src-tauri/target/release/bundle/nsis -Filter '*.exe' -Recurse | Select-Object -First 1
+          if ($null -eq $exe) { throw 'No Windows installer was produced.' }
+          $version = '${{ github.ref_name }}'
+          $manifest = @{
+            version = $version
+            notes = 'Release ' + $version
+            date = (Get-Date -Format o)
+            sha256 = (Get-FileHash $exe.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
+            size = $exe.Length
+            url = 'https://github.com/${{ github.repository }}/releases/download/' + $version + '/' + $exe.Name
+          } | ConvertTo-Json -Compress
+          New-Item -ItemType Directory -Force site | Out-Null
+          Set-Content -Path site/latest.json -Value $manifest -Encoding utf8
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: apps/desktop/src-tauri/target/release/bundle/nsis/*.exe
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+      - id: deploy
+        uses: actions/deploy-pages@v4

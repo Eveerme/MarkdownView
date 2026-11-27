@@ -1,0 +1,19 @@
+{
+  "name": "@markdownview/desktop-contract",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "imports": {
+    "#src/*": "./src/*"
+  },
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "typescript": "catalog:"
+  }
+}

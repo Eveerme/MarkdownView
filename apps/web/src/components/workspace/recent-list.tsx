@@ -6,7 +6,7 @@ import {
 } from "lucide-react";
 import { useEffect, useState } from "react";
 
-import type { RecentFile } from "@markdownview/electron";
+import type { RecentFile } from "@markdownview/desktop-contract";
 import { Button } from "@markdownview/ui/components/button";
 import {
   ContextMenu,

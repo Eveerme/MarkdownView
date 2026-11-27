@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vite-plus/test";
 
-import type { MarkdownFile } from "@markdownview/electron";
+import type { MarkdownFile } from "@markdownview/desktop-contract";
 
 import {
   buildFileTree,

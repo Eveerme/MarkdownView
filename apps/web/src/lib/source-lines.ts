@@ -6,13 +6,20 @@ import type { Root } from "hast";
  * are tagged: nested elements share or overlap their parent's lines, which would
  * break the monotonic guide the scroll sync interpolates along.
  */
-export const rehypeSourceLines = () => (tree: Root) => {
-  for (const node of tree.children) {
-    if (node.type === "element" && node.position !== undefined) {
-      node.properties = {
-        ...node.properties,
-        dataLine: node.position.start.line,
-      };
+export interface SourceLineOptions {
+  offset?: number;
+}
+
+export const rehypeSourceLines =
+  (options?: SourceLineOptions) => (tree: Root) => {
+    const offset = options?.offset ?? 0;
+
+    for (const node of tree.children) {
+      if (node.type === "element" && node.position !== undefined) {
+        node.properties = {
+          ...node.properties,
+          dataLine: node.position.start.line + offset,
+        };
+      }
     }
-  }
-};
+  };

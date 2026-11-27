@@ -6,9 +6,9 @@
   "scripts": {
     "dev": "vp run -r --parallel dev",
     "build": "vp run -r build",
-    "ready": "vp check && vp run knip && vp test && vp run test:e2e && vp run -r build",
+    "ready": "vp check && vp run knip && vp test && vp run test:e2e && vp run --filter @markdownview/web build",
     "prepare": "vp config",
-    "package:desktop": "vp run --filter @markdownview/desktop package",
+    "package:desktop": "vp run --filter @markdownview/desktop build",
     "test:e2e": "vp run --filter @markdownview/web test:e2e",
     "knip": "knip"
   },

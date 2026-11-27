@@ -6,7 +6,7 @@ import type {
   MarkdownFolder,
   MarkdownOpenRequest,
   RecentFile,
-} from "@markdownview/electron";
+} from "@markdownview/desktop-contract";
 
 const visit = async (page: Page, path: string) => {
   await page.goto(path, { waitUntil: "networkidle" });
@@ -31,7 +31,7 @@ const stubDesktopBridge = (scenario: DesktopScenario = {}) => {
   Object.defineProperty(window, "desktop", {
     configurable: true,
     value: {
-      versions: () => ({ chrome: "1", electron: "1", node: "1" }),
+      versions: () => ({ platform: "test", tauri: "2", webview: "test" }),
       openFile: () => null,
       takeOpenRequest: () => {
         const request = pendingOpen;
@@ -74,6 +74,13 @@ const stubDesktopBridge = (scenario: DesktopScenario = {}) => {
         // The recent list starts empty.
       },
       saveImage: () => ({ relativePath: "image.png" }),
+      uploadImage: () => ({ url: "https://example.com/image.png" }),
+      testImageHost: () => true,
+      checkUpdate: () => null,
+      downloadUpdate: () => ({ path: "update.exe" }),
+      installUpdate: () => {
+        localStorage.setItem("markdownview:test:installed", "true");
+      },
       exportDocument: () => null,
     },
   });
@@ -639,6 +646,45 @@ test("a file opened from the file tree keeps the files view", async ({
   await expect(
     page.locator("aside").getByRole("button", { name: "文件", exact: true })
   ).toHaveAttribute("aria-pressed", "true");
+});
+
+test("opened documents stay in tabs and can be switched", async ({ page }) => {
+  const first = "C:\\notes\\one.md";
+  const second = "C:\\notes\\two.md";
+
+  await page.addInitScript(stubDesktopBridge, {
+    documents: {
+      [first]: { content: "# 第一章\n\n第一篇。", name: "one.md", path: first },
+      [second]: {
+        content: "# 第二章\n\n第二篇。",
+        name: "two.md",
+        path: second,
+      },
+    },
+    folders: [
+      {
+        files: [
+          { name: "one.md", path: first, relativePath: "one.md" },
+          { name: "two.md", path: second, relativePath: "two.md" },
+        ],
+        name: "notes",
+        path: "C:\\notes",
+        truncated: false,
+      },
+    ],
+  });
+  await visit(page, "/");
+
+  await page.getByRole("button", { name: "one.md" }).click();
+  await expect(page.locator(".markdown-body h1")).toHaveText("第一章");
+
+  await page.getByRole("button", { name: "two.md" }).click();
+  await expect(page.locator(".markdown-body h1")).toHaveText("第二章");
+
+  await expect(page.getByRole("tab")).toHaveCount(3);
+
+  await page.getByRole("tab", { name: /one\.md/u }).click();
+  await expect(page.locator(".markdown-body h1")).toHaveText("第一章");
 });
 
 test("a recent file can be revealed in the file manager", async ({ page }) => {

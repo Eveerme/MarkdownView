@@ -1,4 +1,7 @@
-import { imageAssetHost, imageAssetScheme } from "@markdownview/electron";
+import {
+  imageAssetHost,
+  imageAssetScheme,
+} from "@markdownview/desktop-contract";
 
 const externalPattern = /^(?:[a-z][a-z0-9+.-]*:|\/\/)/iu;
 

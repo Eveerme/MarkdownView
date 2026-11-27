@@ -36,14 +36,20 @@ describe("settings", () => {
     const { storage, values } = memoryStorage();
 
     const settings: AppSettings = {
+      autoCheckUpdate: false,
       autoSave: false,
       editorFontSize: 18,
+      focusMode: true,
+      imageHost: "picgo",
       lineNumbers: true,
+      picgoEndpoint: "http://127.0.0.1:36677",
       previewFontSize: 21,
       readingWidth: 64,
       recentFilesLimit: 25,
+      showFrontMatter: false,
       splitRatio: 0.4,
       syncScroll: false,
+      typewriterMode: true,
       wordWrap: false,
     };
 

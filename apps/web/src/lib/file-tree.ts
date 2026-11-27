@@ -1,4 +1,4 @@
-import type { MarkdownFile } from "@markdownview/electron";
+import type { MarkdownFile } from "@markdownview/desktop-contract";
 
 const collator = new Intl.Collator("zh-CN", {
   numeric: true,

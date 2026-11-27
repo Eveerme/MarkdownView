@@ -85,21 +85,25 @@ interface EditorReveal {
 }
 
 interface EditorPaneProps {
+  focusMode: boolean;
   lineNumbers: boolean;
   onChange: (value: string) => void;
   onImagePaste?: ImageHandler;
   onViewChange?: (view: EditorView | null) => void;
   reveal: EditorReveal | null;
+  typewriterMode: boolean;
   value: string;
   wordWrap: boolean;
 }
 
 export const EditorPane = ({
+  focusMode,
   lineNumbers: showLineNumbers,
   onChange,
   onImagePaste,
   onViewChange,
   reveal,
+  typewriterMode,
   value,
   wordWrap,
 }: EditorPaneProps) => {
@@ -112,13 +116,33 @@ export const EditorPane = ({
     [onViewChange]
   );
 
+  const typewriter = useMemo(
+    () =>
+      typewriterMode
+        ? EditorView.updateListener.of((update) => {
+            if (!(update.selectionSet || update.docChanged)) {
+              return;
+            }
+
+            update.view.dispatch({
+              effects: EditorView.scrollIntoView(
+                update.state.selection.main.head,
+                { y: "center" }
+              ),
+            });
+          })
+        : [],
+    [typewriterMode]
+  );
+
   const editorExtensions = useMemo(
     () => [
       ...extensions,
+      typewriter,
       ...(wordWrap ? [EditorView.lineWrapping] : []),
       ...(showLineNumbers ? [lineNumbers()] : []),
     ],
-    [showLineNumbers, wordWrap]
+    [showLineNumbers, typewriter, wordWrap]
   );
 
   const pasteImage = (event: ClipboardEvent<HTMLDivElement>) => {
@@ -168,7 +192,7 @@ export const EditorPane = ({
 
   return (
     <div
-      className="editor-pane h-full min-h-0 overflow-hidden"
+      className={`editor-pane h-full min-h-0 overflow-hidden${focusMode ? " focus-mode" : ""}`}
       onDropCapture={dropImage}
       onPasteCapture={pasteImage}
     >

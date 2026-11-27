@@ -7,7 +7,11 @@ import tanstack from "ultracite/oxlint/tanstack";
 import vitest from "ultracite/oxlint/vitest";
 import { defineConfig } from "vite-plus";
 
-const generatedFiles = ["**/routeTree.gen.ts"];
+const generatedFiles = [
+  "**/routeTree.gen.ts",
+  "apps/desktop/src-tauri/gen/**",
+  "apps/desktop/src-tauri/target/**",
+];
 
 const vendoredFiles = ["packages/ui/src/components/**"];
 
@@ -57,14 +61,6 @@ export default defineConfig({
           // UI handlers detach async commands; `void` marks the promise that
           // typescript/no-floating-promises requires. The two rules conflict.
           "no-void": "off",
-        },
-      },
-      {
-        files: ["apps/desktop/src/main/recent-files.ts"],
-        rules: {
-          // A mutex queues callers on a deferred resolver; async/await alone
-          // cannot express a promise that is settled by a later operation.
-          "promise/avoid-new": "off",
         },
       },
       {

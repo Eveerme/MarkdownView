@@ -8,7 +8,7 @@ import type {
   MarkdownSavedFile,
   RecentFile,
   ResolvedLink,
-} from "@markdownview/electron";
+} from "@markdownview/desktop-contract";
 
 import { desktop } from "#src/lib/desktop.ts";
 import { createExportDocument } from "#src/lib/export-document.ts";
@@ -37,6 +37,34 @@ interface EditorReveal {
   line: number;
   nonce: number;
 }
+
+export interface DocumentTab {
+  content: string;
+  id: string;
+  name: string;
+  path: string | null;
+  savedAt: number | null;
+  savedContent: string;
+}
+
+const welcomeTabId = "tab-welcome";
+
+let tabSequence = 0;
+
+const newTabId = () => `tab-${(tabSequence += 1)}`;
+
+const createTab = (
+  content: string,
+  name: string,
+  path: string | null
+): DocumentTab => ({
+  content,
+  id: newTabId(),
+  name,
+  path,
+  savedAt: null,
+  savedContent: content,
+});
 
 const modeStorageKey = "markdownview:mode";
 const untitledName = "未命名.md";
@@ -75,10 +103,13 @@ const mergeFolders = (
 export const useWorkspace = () => {
   const bridge = desktop();
   const { settings } = useSettings();
-  const [content, setContent] = useState(welcomeDocument);
-  const [savedContent, setSavedContent] = useState(welcomeDocument);
-  const [filePath, setFilePath] = useState<string | null>(null);
-  const [fileName, setFileName] = useState("欢迎使用.md");
+
+  const [tabs, setTabs] = useState<DocumentTab[]>(() => [
+    { ...createTab(welcomeDocument, "欢迎使用.md", null), id: welcomeTabId },
+  ]);
+
+  const [activeId, setActiveId] = useState(welcomeTabId);
+
   const [folders, setFolders] = useState<MarkdownFolder[]>([]);
   const [recentFiles, setRecentFiles] = useState<RecentFile[]>([]);
 
@@ -90,7 +121,6 @@ export const useWorkspace = () => {
   const [sidebarOpen, setSidebarOpen] = useState(bridge !== null);
   const [sidebarView, setSidebarView] = useState<SidebarView>("recent");
   const [saving, setSaving] = useState(false);
-  const [savedAt, setSavedAt] = useState<number | null>(null);
 
   const [previewAnchor, setPreviewAnchor] = useState<PreviewAnchor | null>(
     null
@@ -102,20 +132,55 @@ export const useWorkspace = () => {
     null
   );
 
-  // Autosave resolves after later keystrokes; it must not mark them saved.
-  const latestContent = useRef(content);
+  // The panes and every action read the same active tab; unsaved tabs stay open.
+  const activeTab = tabs.find((item) => item.id === activeId) ?? tabs[0];
+  const tab = activeTab ?? createTab(welcomeDocument, "欢迎使用.md", null);
+
+  const {
+    content,
+    name: fileName,
+    path: filePath,
+    savedAt,
+    savedContent,
+  } = tab;
+
   const dirty = content !== savedContent;
-  const dirtyRef = useRef(dirty);
+  const anyDirty = tabs.some((item) => item.content !== item.savedContent);
   const revealNonce = useRef(0);
   const outline = useDocumentOutline(content, filePath);
 
-  useEffect(() => {
-    latestContent.current = content;
-  }, [content]);
+  const dirtyRef = useRef(dirty);
+  const tabsRef = useRef(tabs);
 
   useEffect(() => {
     dirtyRef.current = dirty;
   }, [dirty]);
+
+  useEffect(() => {
+    tabsRef.current = tabs;
+  }, [tabs]);
+
+  const patchActive = (
+    update: (current: DocumentTab) => Partial<DocumentTab>
+  ) => {
+    const { id } = tab;
+
+    setTabs((current) =>
+      current.map((item) =>
+        item.id === id ? { ...item, ...update(item) } : item
+      )
+    );
+  };
+
+  const activate = (id: string) => {
+    if (id === activeId) {
+      return;
+    }
+
+    setActiveId(id);
+    setPreviewAnchor(null);
+    setEditorReveal(null);
+  };
 
   const guard = (run: () => void) => {
     if (dirtyRef.current) {
@@ -150,11 +215,21 @@ export const useWorkspace = () => {
   };
 
   const loadDocument = (document: MarkdownDocument) => {
-    setContent(document.content);
-    setSavedContent(document.content);
-    setFilePath(document.path);
-    setFileName(document.name);
-    setSavedAt(null);
+    const existing = tabsRef.current.find(
+      (item) => item.path === document.path
+    );
+
+    if (existing !== undefined) {
+      activate(existing.id);
+      void refreshRecentFiles();
+
+      return;
+    }
+
+    const opened = createTab(document.content, document.name, document.path);
+
+    setTabs((current) => [...current, opened]);
+    setActiveId(opened.id);
     setPreviewAnchor(null);
     setEditorReveal(null);
     void refreshRecentFiles();
@@ -349,7 +424,7 @@ export const useWorkspace = () => {
 
     try {
       const saved = await bridge.saveImage({
-        data: new Uint8Array(await file.arrayBuffer()),
+        data: [...new Uint8Array(await file.arrayBuffer())],
         from: filePath,
         mimeType: file.type,
       });
@@ -359,6 +434,22 @@ export const useWorkspace = () => {
           .replace(/\.[^.]+$/u, "")
           .replaceAll(/[[\]]/gu, "")
           .trim() || "图片";
+
+      if (settings.imageHost === "picgo") {
+        try {
+          const uploaded = await bridge.uploadImage({
+            endpoint: settings.picgoEndpoint,
+            from: filePath,
+            relativePath: saved.relativePath,
+          });
+
+          return `![${alt}](${uploaded.url})`;
+        } catch (error) {
+          toast.warning("上传到图床失败，已插入本地图片", {
+            description: error instanceof Error ? error.message : undefined,
+          });
+        }
+      }
 
       return `![${alt}](${saved.relativePath})`;
     } catch (error) {
@@ -517,10 +608,12 @@ export const useWorkspace = () => {
       return;
     }
 
-    setFilePath(saved.path);
-    setFileName(saved.name);
-    setSavedContent(snapshot);
-    setSavedAt(Date.now());
+    patchActive(() => ({
+      name: saved.name,
+      path: saved.path,
+      savedAt: Date.now(),
+      savedContent: snapshot,
+    }));
     void refreshRecentFiles();
     await refreshAllFolders();
   };
@@ -542,8 +635,7 @@ export const useWorkspace = () => {
 
     try {
       await bridge.saveFile({ content: snapshot, path: filePath });
-      setSavedContent(snapshot);
-      setSavedAt(Date.now());
+      patchActive(() => ({ savedAt: Date.now(), savedContent: snapshot }));
     } catch (error) {
       if (error instanceof Error) {
         report("保存失败", error);
@@ -555,14 +647,80 @@ export const useWorkspace = () => {
 
   const newDocument = () => {
     guard(() => {
-      setContent("");
-      setSavedContent("");
-      setFilePath(null);
-      setFileName(untitledName);
-      setSavedAt(null);
+      const draft = createTab("", untitledName, null);
+
+      setTabs((current) => [...current, draft]);
+      setActiveId(draft.id);
       setPreviewAnchor(null);
       setEditorReveal(null);
     });
+  };
+
+  const switchTab = (id: string) => {
+    activate(id);
+  };
+
+  const cycleTab = (direction: 1 | -1) => {
+    const items = tabsRef.current;
+    const index = items.findIndex((item) => item.id === activeId);
+
+    if (index === -1 || items.length < 2) {
+      return;
+    }
+
+    const next = items[(index + direction + items.length) % items.length];
+
+    if (next !== undefined) {
+      activate(next.id);
+    }
+  };
+
+  const closeTab = (id: string) => {
+    const target = tabsRef.current.find((item) => item.id === id);
+
+    if (target === undefined) {
+      return;
+    }
+
+    const close = () => {
+      setTabs((current) => {
+        const remaining = current.filter((item) => item.id !== id);
+
+        if (remaining.length === 0) {
+          return [
+            {
+              ...createTab(welcomeDocument, "欢迎使用.md", null),
+              id: welcomeTabId,
+            },
+          ];
+        }
+
+        return remaining;
+      });
+
+      if (id === activeId) {
+        const position = tabsRef.current.findIndex((item) => item.id === id);
+
+        const neighbor =
+          tabsRef.current[position - 1] ?? tabsRef.current[position + 1];
+
+        setActiveId(neighbor?.id ?? welcomeTabId);
+        setPreviewAnchor(null);
+        setEditorReveal(null);
+      }
+    };
+
+    if (target.content !== target.savedContent) {
+      setPendingAction({ message: discardMessage, run: close });
+
+      return;
+    }
+
+    close();
+  };
+
+  const closeActiveTab = () => {
+    closeTab(activeId);
   };
 
   const openFile = () => {
@@ -747,40 +905,78 @@ export const useWorkspace = () => {
     };
   }, [bridge]);
 
-  // Autosave only touches a file that already exists on disk.
   useEffect(() => {
-    let timer: ReturnType<typeof setTimeout> | undefined;
+    if (!bridge || !settings.autoCheckUpdate) {
+      return;
+    }
 
-    if (bridge && filePath !== null && dirty && settings.autoSave) {
-      const snapshot = content;
+    void (async () => {
+      try {
+        const info = await bridge.checkUpdate();
 
-      timer = setTimeout(() => {
-        void (async () => {
-          setSaving(true);
+        if (info !== null) {
+          toast.info(`发现新版本 ${info.version}`, {
+            description: "在「关于」面板中下载并安装",
+          });
+        }
+      } catch {
+        // Update checks are best-effort; the app works fully offline.
+      }
+    })();
+  }, [bridge, settings.autoCheckUpdate]);
 
-          try {
-            await bridge.saveFile({ content: snapshot, path: filePath });
-            setSavedAt(Date.now());
-            setSavedContent((current) =>
-              latestContent.current === snapshot ? snapshot : current
-            );
-          } catch (error) {
-            if (error instanceof Error) {
-              report("自动保存失败", error);
-            }
-          }
+  // Every tab autosaves independently; background edits must not be lost.
+  useEffect(() => {
+    const timers = new Map<string, ReturnType<typeof setTimeout>>();
 
-          setSaving(false);
-        })();
-      }, autosaveDelay);
+    if (bridge && settings.autoSave) {
+      for (const item of tabs) {
+        if (item.path === null || item.content === item.savedContent) {
+          continue;
+        }
+
+        const snapshot = item.content;
+        const { path } = item;
+        const { id } = item;
+
+        timers.set(
+          id,
+          setTimeout(() => {
+            void (async () => {
+              setSaving(true);
+
+              try {
+                await bridge.saveFile({ content: snapshot, path });
+                setTabs((current) =>
+                  current.map((entry) =>
+                    entry.id === id && entry.content === snapshot
+                      ? {
+                          ...entry,
+                          savedAt: Date.now(),
+                          savedContent: snapshot,
+                        }
+                      : entry
+                  )
+                );
+              } catch (error) {
+                if (error instanceof Error) {
+                  report("自动保存失败", error);
+                }
+              }
+
+              setSaving(false);
+            })();
+          }, autosaveDelay)
+        );
+      }
     }
 
     return () => {
-      if (timer !== undefined) {
+      for (const timer of timers.values()) {
         clearTimeout(timer);
       }
     };
-  }, [bridge, content, dirty, filePath, settings.autoSave]);
+  }, [bridge, settings.autoSave, tabs]);
 
   useEffect(() => {
     document.title = `${dirty ? "• " : ""}${fileName} — MarkdownView`;
@@ -788,7 +984,7 @@ export const useWorkspace = () => {
 
   useEffect(() => {
     const warn = (event: BeforeUnloadEvent) => {
-      if (dirty) {
+      if (anyDirty) {
         event.preventDefault();
       }
     };
@@ -798,12 +994,28 @@ export const useWorkspace = () => {
     return () => {
       window.removeEventListener("beforeunload", warn);
     };
-  }, [dirty]);
+  }, [anyDirty]);
 
-  const actions = useRef({ newDocument, openFile, save, saveAs });
+  const actions = useRef({
+    closeActiveTab,
+    cycleTab,
+    newDocument,
+    openFile,
+    save,
+    saveAs,
+    switchTab,
+  });
 
   useEffect(() => {
-    actions.current = { newDocument, openFile, save, saveAs };
+    actions.current = {
+      closeActiveTab,
+      cycleTab,
+      newDocument,
+      openFile,
+      save,
+      saveAs,
+      switchTab,
+    };
   });
 
   useEffect(() => {
@@ -818,6 +1030,9 @@ export const useWorkspace = () => {
         if (key === "s") {
           event.preventDefault();
           void actions.current.saveAs();
+        } else if (key === "tab") {
+          event.preventDefault();
+          actions.current.cycleTab(-1);
         }
 
         return;
@@ -832,6 +1047,12 @@ export const useWorkspace = () => {
       } else if (key === "n") {
         event.preventDefault();
         actions.current.newDocument();
+      } else if (key === "w") {
+        event.preventDefault();
+        actions.current.closeActiveTab();
+      } else if (key === "tab") {
+        event.preventDefault();
+        actions.current.cycleTab(1);
       }
     };
 
@@ -846,6 +1067,7 @@ export const useWorkspace = () => {
     actions: {
       clearPreviewAnchor,
       clearRecentFiles,
+      closeTab,
       exportDocument,
       focusLine,
       newDocument,
@@ -861,8 +1083,11 @@ export const useWorkspace = () => {
       save,
       saveAs,
       saveImage,
+      switchTab,
       toggleFolder,
     },
+    activeId,
+    anyDirty,
     confirmation: {
       message: pendingAction?.message ?? discardMessage,
       open: pendingAction !== null,
@@ -882,11 +1107,14 @@ export const useWorkspace = () => {
     recentFiles: recentFiles.slice(0, settings.recentFilesLimit),
     savedAt,
     saving,
-    setContent,
+    setContent: (value: string) => {
+      patchActive(() => ({ content: value }));
+    },
     setMode: changeMode,
     setSidebarOpen,
     setSidebarView,
     sidebarOpen,
     sidebarView,
+    tabs,
   };
 };

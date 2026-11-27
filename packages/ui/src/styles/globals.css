@@ -737,6 +737,14 @@
   outline: none;
 }
 
+.editor-pane.focus-mode .cm-line {
+  transition: opacity 140ms ease;
+}
+
+.editor-pane.focus-mode .cm-line:not(.cm-activeLine) {
+  opacity: 0.32;
+}
+
 .editor-pane .cm-selectionBackground,
 .editor-pane .cm-content ::selection {
   background: color-mix(in oklch, var(--primary) 18%, transparent) !important;

@@ -13,6 +13,7 @@ import { EditorPane } from "#src/components/workspace/editor-pane.tsx";
 import { FileSidebar } from "#src/components/workspace/file-sidebar.tsx";
 import { PreviewPane } from "#src/components/workspace/preview-pane.tsx";
 import { StatusBar } from "#src/components/workspace/status-bar.tsx";
+import { TabBar } from "#src/components/workspace/tab-bar.tsx";
 import { Toolbar } from "#src/components/workspace/toolbar.tsx";
 import { useActiveOutline } from "#src/lib/use-active-outline.ts";
 import { useScrollSync } from "#src/lib/use-scroll-sync.ts";
@@ -148,7 +149,7 @@ export const Workspace = () => {
 
   return (
     <div
-      className="grid h-svh grid-rows-[auto_minmax(0,1fr)_auto] overflow-hidden"
+      className="grid h-svh grid-rows-[auto_auto_minmax(0,1fr)_auto] overflow-hidden"
       style={stageStyle}
     >
       <Toolbar
@@ -182,6 +183,17 @@ export const Workspace = () => {
         }}
         saving={workspace.saving}
         sidebarOpen={workspace.sidebarOpen}
+      />
+
+      <TabBar
+        activeId={workspace.activeId}
+        onClose={(id) => {
+          workspace.actions.closeTab(id);
+        }}
+        onSelect={(id) => {
+          workspace.actions.switchTab(id);
+        }}
+        tabs={workspace.tabs}
       />
 
       <div className="flex min-h-0 min-w-0">
@@ -243,6 +255,7 @@ export const Workspace = () => {
               }
             >
               <EditorPane
+                focusMode={settings.focusMode}
                 lineNumbers={settings.lineNumbers}
                 onChange={(value) => {
                   workspace.setContent(value);
@@ -250,6 +263,7 @@ export const Workspace = () => {
                 onImagePaste={handleImagePaste}
                 onViewChange={setEditorView}
                 reveal={workspace.editorReveal}
+                typewriterMode={settings.typewriterMode}
                 value={workspace.content}
                 wordWrap={settings.wordWrap}
               />
@@ -292,6 +306,7 @@ export const Workspace = () => {
                 onScrollHandled={clearPreviewAnchor}
                 onSelectLine={focusLine}
                 scrollTarget={workspace.previewAnchor}
+                showFrontMatter={settings.showFrontMatter}
               />
             </div>
           )}

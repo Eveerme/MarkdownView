@@ -1,26 +1,98 @@
+import type { Element, Parent, Root, RootContent } from "hast";
 import rehypeHighlight from "rehype-highlight";
+import rehypeKatex from "rehype-katex";
 import rehypeRaw from "rehype-raw";
 import rehypeSlug from "rehype-slug";
 import rehypeStringify from "rehype-stringify";
 import remarkGfm from "remark-gfm";
+import remarkMath from "remark-math";
 import remarkParse from "remark-parse";
 import remarkRehype from "remark-rehype";
 import { unified } from "unified";
+import { visit } from "unist-util-visit";
 
+import { frontMatterEntries, parseFrontMatter } from "#src/lib/front-matter.ts";
 import { rehypeHtmlBlocks } from "#src/lib/html-blocks.ts";
+import { renderMermaidSvg } from "#src/lib/mermaid-render.ts";
+
+import katexCss from "katex/dist/katex.min.css?raw";
+
+const textOf = (node: RootContent): string => {
+  if (node.type === "text") {
+    return node.value;
+  }
+
+  if ("children" in node) {
+    return node.children.map(textOf).join("");
+  }
+
+  return "";
+};
+
+const rehypeMermaid = () => async (tree: Root) => {
+  const targets: { chart: string; index: number; parent: Parent }[] = [];
+
+  visit(tree, "element", (node: Element, index, parent) => {
+    if (index === undefined || parent === undefined || node.tagName !== "pre") {
+      return;
+    }
+
+    const [code] = node.children;
+
+    if (code?.type !== "element" || code.tagName !== "code") {
+      return;
+    }
+
+    const classes = code.properties?.className;
+
+    if (!Array.isArray(classes) || !classes.includes("language-mermaid")) {
+      return;
+    }
+
+    targets.push({
+      chart: textOf(code).replace(/\n$/u, ""),
+      index,
+      parent,
+    });
+  });
+
+  const rendered = await Promise.all(
+    targets.map(async (target) => {
+      try {
+        return { svg: await renderMermaidSvg(target.chart), target };
+      } catch {
+        // A broken chart keeps its original source instead of failing the export.
+        return { svg: null, target };
+      }
+    })
+  );
+
+  for (const { svg, target } of rendered) {
+    if (svg === null) {
+      continue;
+    }
+
+    target.parent.children[target.index] = {
+      children: [{ type: "raw", value: svg }],
+      properties: { className: ["mermaid-block"] },
+      tagName: "div",
+      type: "element",
+    };
+  }
+};
 
 const processor = unified()
   .use(remarkParse)
   .use(remarkGfm)
+  .use(remarkMath)
   .use(remarkRehype, { allowDangerousHtml: true })
   .use(rehypeRaw)
   .use(rehypeHtmlBlocks)
   .use(rehypeSlug)
+  .use(rehypeKatex)
   .use(rehypeHighlight)
+  .use(rehypeMermaid)
   .use(rehypeStringify);
-
-export const renderMarkdownHtml = async (content: string) =>
-  String(await processor.process(content));
 
 const escapeHtml = (value: string) =>
   value.replaceAll(/[&<>"']/gu, (character) => {
@@ -47,6 +119,25 @@ const escapeHtml = (value: string) =>
     }
   });
 
+export const renderMarkdownHtml = async (content: string) => {
+  const { body, data } = parseFrontMatter(content);
+  const entries = frontMatterEntries(data);
+  const html = String(await processor.process(body));
+
+  if (entries.length === 0) {
+    return html;
+  }
+
+  const rows = entries
+    .map(
+      ({ key, value }) =>
+        `<dt>${escapeHtml(key)}</dt><dd>${escapeHtml(value)}</dd>`
+    )
+    .join("");
+
+  return `<header class="front-matter"><dl>${rows}</dl></header>${html}`;
+};
+
 export const exportFileName = (fileName: string) => {
   const base = fileName.replace(/\.(?:md|markdown)$/iu, "").trim();
 
@@ -62,6 +153,23 @@ export const exportFileName = (fileName: string) => {
 };
 
 const exportStyles = `
+.front-matter {
+  background: color-mix(in oklch, var(--muted) 40%, transparent);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  margin-bottom: 2em;
+  padding: 0.8em 1.1em;
+}
+.front-matter dl {
+  display: grid;
+  gap: 0.2em 0.8em;
+  grid-template-columns: auto 1fr;
+  margin: 0;
+}
+.front-matter dt { color: var(--muted-foreground); font-weight: 600; }
+.front-matter dd { margin: 0; overflow-wrap: anywhere; }
+.mermaid-block svg { height: auto; max-width: 100%; }
+${katexCss}
 * { box-sizing: border-box; }
 html { -webkit-text-size-adjust: 100%; }
 body {

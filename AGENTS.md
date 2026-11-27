@@ -46,17 +46,17 @@ Converge on the simplest durable design that meets current requirements, and lan
 
 ## Map
 
-| Path                | Owns                                                                                                                         |
-| ------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
-| `apps/web`          | React SPA: TanStack Router file routes, TanStack Query; e2e tests in `tests/e2e/`                                            |
-| `packages/ui`       | shadcn/ui components (Base UI), Tailwind theme in `src/styles/globals.css`                                                   |
-| `apps/desktop`      | Electron main and preload processes, the `https://app.localhost/` renderer server, IPC handlers, and electron-builder config |
-| `packages/electron` | The IPC contract: channel names, payload schemas, and the `window.desktop` type                                              |
-| `packages/config`   | Shared TypeScript presets                                                                                                    |
+| Path                        | Owns                                                                                      |
+| --------------------------- | ----------------------------------------------------------------------------------------- |
+| `apps/web`                  | React SPA: TanStack Router file routes, TanStack Query; e2e tests in `tests/e2e/`         |
+| `packages/ui`               | shadcn/ui components (Base UI), Tailwind theme in `src/styles/globals.css`                |
+| `apps/desktop`              | Tauri 2 Rust app: commands, custom `mdview` scheme, capabilities, and NSIS config         |
+| `packages/desktop-contract` | The desktop contract: Tauri command names, payload schemas, and the `window.desktop` type |
+| `packages/config`           | Shared TypeScript presets                                                                 |
 
 `vp run dev` serves the app on :5173. `vp run build` writes static files to `apps/web/dist`; there is no server.
 
-The desktop app wraps `apps/web`: `vp run dev` starts the web dev server and opens it in an Electron window; `vp run package:desktop` builds the web app and packages the installer with electron-builder. The window loads `https://app.localhost/`, an origin the main process answers itself from `apps/web/dist` with the SPA fallback. Restart `vp run dev` after changing main or preload code. Main, preload, and the renderer share the IPC contract in `packages/electron`; the renderer reads it from `window.desktop`.
+The desktop app wraps `apps/web`: `vp run dev` starts the web dev server and opens it in a Tauri WebView2 window; `vp run package:desktop` builds the web app and packages an NSIS installer. `tauri.conf.json` points `frontendDist` at `apps/web/dist` and builds it before packaging. Rust rebuilds automatically during `tauri dev`. The renderer talks to Rust only through the `window.desktop` adapter in `apps/web/src/lib/desktop.ts`, which implements the shared contract in `packages/desktop-contract`. Local note images use the `mdview://asset/` scheme registered in Rust.
 
 ## Conventions
 

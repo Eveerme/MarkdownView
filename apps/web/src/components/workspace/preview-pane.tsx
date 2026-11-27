@@ -1,3 +1,5 @@
+import "katex/dist/katex.min.css";
+import { isString } from "es-toolkit";
 import { FeatherIcon } from "lucide-react";
 import {
   createContext,
@@ -5,6 +7,7 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useMemo,
   useRef,
   useState,
 } from "react";
@@ -12,12 +15,16 @@ import type { ComponentProps } from "react";
 import Markdown from "react-markdown";
 import type { Components } from "react-markdown";
 import rehypeHighlight from "rehype-highlight";
+import rehypeKatex from "rehype-katex";
 import rehypeRaw from "rehype-raw";
 import rehypeSlug from "rehype-slug";
 import remarkGfm from "remark-gfm";
+import remarkMath from "remark-math";
 
 import { ImageLightbox } from "#src/components/workspace/image-lightbox.tsx";
+import { MermaidBlock } from "#src/components/workspace/mermaid-block.tsx";
 import { assetUrl } from "#src/lib/asset-url.ts";
+import { frontMatterEntries, parseFrontMatter } from "#src/lib/front-matter.ts";
 import { rehypeHtmlBlocks } from "#src/lib/html-blocks.ts";
 import { rehypeSourceLines } from "#src/lib/source-lines.ts";
 
@@ -34,6 +41,7 @@ interface PreviewPaneProps {
   onScrollHandled?: () => void;
   onSelectLine?: (line: number) => void;
   scrollTarget: PreviewScrollTarget | null;
+  showFrontMatter?: boolean;
 }
 
 const externalPattern = /^(?:https?|mailto):/iu;
@@ -99,8 +107,19 @@ const MarkdownVideo = ({ src, ...rest }: ComponentProps<"video">) => {
   return <video {...rest} src={resolveAsset(src) ?? src} />;
 };
 
+const MarkdownCode = ({ children, className }: ComponentProps<"code">) => {
+  if ((className ?? "").split(/\s+/u).includes("language-mermaid")) {
+    const chart = isString(children) ? children : "";
+
+    return <MermaidBlock chart={chart.replace(/\n$/u, "")} />;
+  }
+
+  return <code className={className}>{children}</code>;
+};
+
 const components: Components = {
   a: MarkdownLink,
+  code: MarkdownCode,
   img: MarkdownImage,
   video: MarkdownVideo,
 };
@@ -113,6 +132,7 @@ const PreviewPaneView = ({
   onScrollHandled,
   onSelectLine,
   scrollTarget,
+  showFrontMatter = true,
 }: PreviewPaneProps) => {
   const container = useRef<HTMLDivElement>(null);
   const linkHandler = useRef(onOpenLink);
@@ -121,6 +141,13 @@ const PreviewPaneView = ({
 
   const [viewing, setViewing] = useState<{ alt: string; src: string } | null>(
     null
+  );
+
+  const frontMatter = useMemo(() => parseFrontMatter(content), [content]);
+
+  const meta = useMemo(
+    () => frontMatterEntries(frontMatter.data),
+    [frontMatter]
   );
 
   const attachContainer = useCallback(
@@ -253,18 +280,50 @@ const PreviewPaneView = ({
             </div>
           ) : (
             <article className="markdown-body markdown-page mx-auto w-full px-8 pt-12 pb-24 sm:px-10">
+              {showFrontMatter && meta.length > 0 ? (
+                <header className="border-border bg-muted/40 mb-8 rounded-lg border px-4 py-3 text-sm">
+                  <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1">
+                    {meta.map(({ key, value }, index) => (
+                      <div
+                        className="col-span-2 grid grid-cols-subgrid"
+                        key={key}
+                      >
+                        <dt className="text-muted-foreground font-medium">
+                          {key}
+                        </dt>
+                        <dd className="min-w-0 break-words">
+                          {index === 0 ? (
+                            <button
+                              className="text-left underline-offset-4 hover:underline"
+                              onClick={() => {
+                                onSelectLine?.(2);
+                              }}
+                              type="button"
+                            >
+                              {value}
+                            </button>
+                          ) : (
+                            value
+                          )}
+                        </dd>
+                      </div>
+                    ))}
+                  </dl>
+                </header>
+              ) : null}
               <Markdown
                 components={components}
                 rehypePlugins={[
                   rehypeRaw,
                   rehypeHtmlBlocks,
                   rehypeSlug,
+                  rehypeKatex,
                   rehypeHighlight,
-                  rehypeSourceLines,
+                  [rehypeSourceLines, { offset: frontMatter.lineOffset }],
                 ]}
-                remarkPlugins={[remarkGfm]}
+                remarkPlugins={[remarkGfm, remarkMath]}
               >
-                {content}
+                {frontMatter.body}
               </Markdown>
             </article>
           )}

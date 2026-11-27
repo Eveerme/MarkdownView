@@ -9,7 +9,10 @@ import {
 import { useMemo } from "react";
 import type { ReactNode } from "react";
 
-import type { MarkdownFile, MarkdownFolder } from "@markdownview/electron";
+import type {
+  MarkdownFile,
+  MarkdownFolder,
+} from "@markdownview/desktop-contract";
 import { Button } from "@markdownview/ui/components/button";
 import {
   ContextMenu,
