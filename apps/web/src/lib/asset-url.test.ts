@@ -1,9 +1,10 @@
 import { describe, expect, it } from "vite-plus/test";
 
-import { assetUrl } from "#src/lib/asset-url.ts";
+import { assetUrl, alternateAssetUrl } from "#src/lib/asset-url.ts";
 
 const from = "C:\\notes\\daily\\note.md";
-const prefix = "mdview://asset/";
+const prefix = "mdview://localhost/asset/";
+const windowsPrefix = "http://mdview.localhost/asset/";
 
 describe("note image URLs", () => {
   it("routes a relative image through the desktop protocol", () => {
@@ -15,6 +16,22 @@ describe("note image URLs", () => {
         "assets/我的 图.png"
       )}`
     );
+  });
+
+  it("uses the localhost mapping for WebView2 image requests", () => {
+    expect(assetUrl({ from, src: "docs/screenshot.png", windows: true })).toBe(
+      `${windowsPrefix}?from=${encodeURIComponent(from)}&src=docs%2Fscreenshot.png`
+    );
+  });
+
+  it("switches between the native and Windows image URLs on failure", () => {
+    expect(alternateAssetUrl(`${prefix}?from=a&src=b.png`)).toBe(
+      `${windowsPrefix}?from=a&src=b.png`
+    );
+    expect(alternateAssetUrl(`${windowsPrefix}?from=a&src=b.png`)).toBe(
+      `${prefix}?from=a&src=b.png`
+    );
+    expect(alternateAssetUrl("https://example.com/a.png")).toBeNull();
   });
 
   it("decodes a source the author already wrote percent-encoded", () => {

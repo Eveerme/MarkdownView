@@ -24,7 +24,7 @@ import remarkMath from "remark-math";
 
 import { ImageLightbox } from "#src/components/workspace/image-lightbox.tsx";
 import { MermaidBlock } from "#src/components/workspace/mermaid-block.tsx";
-import { assetUrl } from "#src/lib/asset-url.ts";
+import { assetUrl, alternateAssetUrl } from "#src/lib/asset-url.ts";
 import { frontMatterEntries, parseFrontMatter } from "#src/lib/front-matter.ts";
 import { rehypeHtmlBlocks } from "#src/lib/html-blocks.ts";
 import { countLines } from "#src/lib/markdown-stats.ts";
@@ -92,6 +92,17 @@ const MarkdownImage = ({ alt, src, ...rest }: ComponentProps<"img">) => {
       {...rest}
       alt={alt ?? ""}
       decoding="async"
+      onError={(event) => {
+        const image = event.currentTarget;
+        const next = alternateAssetUrl(image.src);
+
+        if (next === null || image.dataset.assetFallback === image.src) {
+          return;
+        }
+
+        image.dataset.assetFallback = image.src;
+        image.src = next;
+      }}
       src={resolveAsset(src) ?? src}
     />
   );

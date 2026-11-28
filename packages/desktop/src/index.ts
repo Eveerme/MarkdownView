@@ -34,7 +34,8 @@ export const desktopCommands = {
 
 /** The custom scheme the renderer loads local note images from. */
 export const imageAssetScheme = "mdview";
-export const imageAssetHost = "asset";
+export const imageAssetHost = "localhost";
+export const imageAssetPath = "/asset";
 
 export const versionsSchema = z.object({
   platform: z.string(),

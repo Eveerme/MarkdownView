@@ -1,4 +1,4 @@
-//! Serves `mdview://asset/?from=<note>&src=<relative image>` requests.
+﻿//! Serves `mdview://asset/?from=<note>&src=<relative image>` requests.
 
 use std::{fs, path::{Path, PathBuf}, sync::Arc};
 
@@ -89,7 +89,7 @@ fn resolve_image_request<R: Runtime>(app: &AppHandle<R>, from: &str, src: &str) 
 pub fn handle<R: Runtime>(app: &AppHandle<R>, request: http::Request<Vec<u8>>) -> http::Response<Vec<u8>> {
     let uri = request.uri();
 
-    if uri.host() != Some("asset") {
+    if uri.host() != Some("localhost") || !uri.path().starts_with("/asset") {
         return not_found();
     }
 
