@@ -37,6 +37,12 @@ pub fn run() {
             let shared = Arc::new(state::AppState::new(&data_dir));
             app.manage(Arc::clone(&shared));
 
+            // Keep the custom titlebar as the only one, even if an older window
+            // state restored a decorated window.
+            if let Some(window) = app.get_webview_window("main") {
+                let _ = window.set_decorations(false);
+            }
+
             let args: Vec<String> = std::env::args().collect();
             let cwd = std::env::current_dir().unwrap_or_default();
 

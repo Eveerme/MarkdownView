@@ -127,6 +127,14 @@ const stubDesktopBridge = (scenario: DesktopScenario = {}) => {
         localStorage.setItem("markdownview:test:installed", "true");
       },
       exportDocument: () => null,
+      minimizeWindow: () => {
+        // The browser preview has no native window.
+      },
+      toggleMaximizeWindow: () => false,
+      closeWindow: () => {
+        // The browser preview has no native window.
+      },
+      isWindowMaximized: () => false,
     },
   });
 };
@@ -345,8 +353,8 @@ test("new documents open in edit mode and keep the tab bar visible", async ({
   await visit(page, "/");
 
   await expect(page.getByRole("tablist", { name: "打开的文档" })).toBeVisible();
-  await expect(page.locator("header")).toHaveCount(1);
-  await expect(page.getByRole("navigation", { name: "主导航" })).toBeVisible();
+  await expect(page.locator(".app-titlebar")).toHaveCount(1);
+  await expect(page.locator(".app-topbar")).toHaveCount(1);
   await page.getByRole("button", { name: "新建文档" }).click();
 
   await expect(page.locator(".cm-content")).toBeVisible();
@@ -945,7 +953,7 @@ test("a file opened from the desktop switches the sidebar to the outline", async
 
   await expect(page.locator(".markdown-body h1")).toHaveText("外部文件");
   await expect(
-    page.getByRole("navigation", { name: "主导航" }).getByRole("button", {
+    page.locator("aside").getByRole("button", {
       name: "大纲",
     })
   ).toHaveAttribute("aria-pressed", "true");
@@ -976,7 +984,7 @@ test("a file opened from the recent list keeps the recent view", async ({
 
   await expect(page.locator(".markdown-body h1")).toHaveText("最近文件");
   await expect(
-    page.getByRole("navigation", { name: "主导航" }).getByRole("button", {
+    page.locator("aside").getByRole("button", {
       name: "最近",
     })
   ).toHaveAttribute("aria-pressed", "true");
@@ -1007,7 +1015,7 @@ test("a file opened from the file tree keeps the files view", async ({
 
   await expect(page.locator(".markdown-body h1")).toHaveText("文件树");
   await expect(
-    page.getByRole("navigation", { name: "主导航" }).getByRole("button", {
+    page.locator("aside").getByRole("button", {
       name: "文件",
       exact: true,
     })

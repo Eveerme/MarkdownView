@@ -205,6 +205,10 @@ export interface DesktopApi {
   exportDocument: (
     request: ExportDocumentRequest
   ) => Promise<MarkdownSavedFile | null>;
+  minimizeWindow: () => Promise<void>;
+  toggleMaximizeWindow: () => Promise<boolean>;
+  closeWindow: () => Promise<void>;
+  isWindowMaximized: () => Promise<boolean>;
 }
 
 declare global {

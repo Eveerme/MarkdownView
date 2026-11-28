@@ -1,4 +1,10 @@
-import { FolderPlusIcon } from "lucide-react";
+import {
+  ClockIcon,
+  FolderPlusIcon,
+  FolderTreeIcon,
+  ListTreeIcon,
+  PlusIcon,
+} from "lucide-react";
 import type { ReactNode } from "react";
 
 import type {
@@ -7,11 +13,19 @@ import type {
 } from "@markdownview/desktop-contract";
 import { Button } from "@markdownview/ui/components/button";
 
+import { AboutDialog } from "#src/components/about-dialog.tsx";
 import { FileTree } from "#src/components/workspace/file-tree.tsx";
 import { OutlineList } from "#src/components/workspace/outline-list.tsx";
 import { RecentList } from "#src/components/workspace/recent-list.tsx";
+import { SettingsDialog } from "#src/components/workspace/settings-dialog.tsx";
 import type { OutlineItem } from "#src/lib/outline.ts";
 import type { SidebarView } from "#src/lib/use-workspace.ts";
+
+const views = [
+  { icon: ClockIcon, label: "最近", value: "recent" },
+  { icon: FolderTreeIcon, label: "文件", value: "files" },
+  { icon: ListTreeIcon, label: "大纲", value: "outline" },
+] as const;
 
 interface FileSidebarProps {
   activeOutlineId: string | null;
@@ -22,6 +36,7 @@ interface FileSidebarProps {
   recentFiles: RecentFile[];
   view: SidebarView;
   onClearRecent: () => void;
+  onNew: () => void;
   onOpen: (path: string) => void;
   onOpenFile: () => void;
   onOpenFolder: () => void;
@@ -31,6 +46,7 @@ interface FileSidebarProps {
   onRevealFile: (path: string) => void;
   onRevealFolder: (path: string) => void;
   onToggleFolder: (key: string) => void;
+  onViewChange: (view: SidebarView) => void;
 }
 
 const viewLabels = {
@@ -65,6 +81,7 @@ export const FileSidebar = ({
   recentFiles,
   view,
   onClearRecent,
+  onNew,
   onOpen,
   onOpenFile,
   onOpenFolder,
@@ -74,6 +91,7 @@ export const FileSidebar = ({
   onRevealFile,
   onRevealFolder,
   onToggleFolder,
+  onViewChange,
 }: FileSidebarProps) => {
   let body: ReactNode;
 
@@ -115,11 +133,36 @@ export const FileSidebar = ({
   }
 
   return (
-    <aside className="workspace-sidebar bg-sidebar flex w-full min-w-0 flex-1 flex-col">
-      <div className="flex h-10 shrink-0 items-center justify-between gap-2 px-2">
-        <span className="text-foreground/80 truncate text-xs font-medium">
-          {viewLabels[view]}
-        </span>
+    <aside className="workspace-sidebar flex w-full min-w-0 flex-1 flex-col">
+      <div className="sidebar-create">
+        <Button className="w-full" onClick={onNew} size="sm" variant="default">
+          <PlusIcon />
+          新建文档
+        </Button>
+      </div>
+
+      <div className="sidebar-views">
+        {views.map(({ icon: Icon, label, value }) => (
+          <button
+            aria-label={label}
+            aria-pressed={view === value}
+            className={`sidebar-view-button ${
+              view === value ? "sidebar-view-active" : ""
+            }`}
+            key={value}
+            onClick={() => {
+              onViewChange(value);
+            }}
+            title={label}
+            type="button"
+          >
+            <Icon className="size-4" />
+          </button>
+        ))}
+      </div>
+
+      <div className="sidebar-section-head">
+        <span>{viewLabels[view]}</span>
         <Button
           aria-label="打开文件夹"
           onClick={onOpenFolder}
@@ -132,6 +175,11 @@ export const FileSidebar = ({
       </div>
 
       {body}
+
+      <div className="sidebar-footer">
+        <SettingsDialog />
+        <AboutDialog />
+      </div>
     </aside>
   );
 };

@@ -1,6 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import type { InvokeArgs } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
+import { getCurrentWindow } from "@tauri-apps/api/window";
 import { z } from "zod";
 import type { ZodType } from "zod";
 
@@ -185,6 +186,24 @@ const tauriDesktop: DesktopApi = {
       markdownSavedFileSchema.nullable(),
       request
     ),
+
+  minimizeWindow: async () => {
+    await getCurrentWindow().minimize();
+  },
+
+  toggleMaximizeWindow: async () => {
+    const window = getCurrentWindow();
+
+    await window.toggleMaximize();
+
+    return await window.isMaximized();
+  },
+
+  closeWindow: async () => {
+    await getCurrentWindow().close();
+  },
+
+  isWindowMaximized: async () => await getCurrentWindow().isMaximized(),
 };
 
 /** The desktop bridge, or null when the app runs in a browser tab. */

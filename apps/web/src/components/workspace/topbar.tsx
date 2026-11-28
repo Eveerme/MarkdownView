@@ -6,7 +6,10 @@ import {
   FolderOpenIcon,
   FolderPlusIcon,
   LoaderCircleIcon,
+  PanelLeftCloseIcon,
+  PanelLeftOpenIcon,
   PencilIcon,
+  PlusIcon,
   SaveAllIcon,
   SaveIcon,
 } from "lucide-react";
@@ -22,8 +25,9 @@ import {
   DropdownMenuTrigger,
 } from "@markdownview/ui/components/dropdown-menu";
 
-import { TabBar } from "#src/components/workspace/tab-bar.tsx";
-import type { DocumentTab, ViewMode } from "#src/lib/use-workspace.ts";
+import { AboutDialog } from "#src/components/about-dialog.tsx";
+import { SettingsDialog } from "#src/components/workspace/settings-dialog.tsx";
+import type { ViewMode } from "#src/lib/use-workspace.ts";
 
 const modes = [
   { icon: PencilIcon, label: "编辑", value: "edit" },
@@ -31,11 +35,11 @@ const modes = [
   { icon: EyeIcon, label: "预览", value: "preview" },
 ] as const;
 
-interface ToolbarProps {
-  activeId: string;
+interface TopbarProps {
+  dirty: boolean;
+  fileName: string;
   isDesktop: boolean;
   mode: ViewMode;
-  onCloseTab: (id: string) => void;
   onExport: (format: ExportFormat) => void;
   onModeChange: (mode: ViewMode) => void;
   onNew: () => void;
@@ -43,16 +47,16 @@ interface ToolbarProps {
   onOpenFolder: () => void;
   onSave: () => void;
   onSaveAs: () => void;
-  onSelectTab: (id: string) => void;
+  onToggleSidebar: () => void;
   saving: boolean;
-  tabs: DocumentTab[];
+  sidebarOpen: boolean;
 }
 
-export const Toolbar = ({
-  activeId,
+export const Topbar = ({
+  dirty,
+  fileName,
   isDesktop,
   mode,
-  onCloseTab,
   onExport,
   onModeChange,
   onNew,
@@ -60,26 +64,38 @@ export const Toolbar = ({
   onOpenFolder,
   onSave,
   onSaveAs,
-  onSelectTab,
+  onToggleSidebar,
   saving,
-  tabs,
-}: ToolbarProps) => (
-  <header className="workspace-toolbar flex h-full min-w-0 items-center gap-2 px-2">
-    <TabBar
-      activeId={activeId}
-      onClose={onCloseTab}
-      onNew={onNew}
-      onSelect={onSelectTab}
-      tabs={tabs}
-    />
+  sidebarOpen,
+}: TopbarProps) => (
+  <header className="app-topbar">
+    <div className="topbar-context">
+      {isDesktop ? (
+        <Button
+          aria-label={sidebarOpen ? "收起侧边栏" : "展开侧边栏"}
+          onClick={onToggleSidebar}
+          size="icon-sm"
+          title="侧边栏"
+          variant="ghost"
+        >
+          {sidebarOpen ? <PanelLeftCloseIcon /> : <PanelLeftOpenIcon />}
+        </Button>
+      ) : null}
+      <span className="topbar-document-name">{fileName}</span>
+      {dirty ? (
+        <span aria-label="未保存" className="titlebar-dirty" title="未保存" />
+      ) : (
+        <span className="topbar-saved">已保存</span>
+      )}
+    </div>
 
-    <div className="flex shrink-0 items-center gap-1">
-      <fieldset className="bg-muted/75 m-0 flex items-center gap-0 rounded-lg border-0 p-0.5">
+    <div className="topbar-actions">
+      <fieldset className="view-switch">
         <legend className="sr-only">视图模式</legend>
         {modes.map(({ icon: Icon, label, value }) => (
           <button
             aria-pressed={mode === value}
-            className="text-muted-foreground hover:text-foreground aria-pressed:bg-card aria-pressed:text-foreground flex h-6 items-center justify-center gap-1 rounded-md px-1.5 text-xs transition-colors aria-pressed:shadow-xs sm:px-2"
+            className="view-switch-button"
             key={value}
             onClick={() => {
               onModeChange(value);
@@ -88,8 +104,8 @@ export const Toolbar = ({
             type="button"
           >
             <Icon className="size-3.5" />
-            <span className="hidden md:inline">{label}</span>
-            <span className="sr-only md:hidden">{label}</span>
+            <span className="hidden sm:inline">{label}</span>
+            <span className="sr-only sm:hidden">{label}</span>
           </button>
         ))}
       </fieldset>
@@ -143,19 +159,33 @@ export const Toolbar = ({
           <Button
             aria-label="保存"
             onClick={onSave}
-            size="icon-sm"
+            size="sm"
             title="保存 (Ctrl+S)"
-            variant="ghost"
+            variant="default"
           >
             {saving ? (
               <LoaderCircleIcon className="animate-spin" />
             ) : (
               <SaveIcon />
             )}
+            <span className="hidden sm:inline">保存</span>
           </Button>
-          <span aria-hidden="true" className="bg-border mx-1 h-4 w-px" />
         </>
-      ) : null}
+      ) : (
+        <>
+          <Button
+            aria-label="新建文档"
+            onClick={onNew}
+            size="icon-sm"
+            title="新建文档"
+            variant="ghost"
+          >
+            <PlusIcon />
+          </Button>
+          <SettingsDialog />
+          <AboutDialog />
+        </>
+      )}
     </div>
   </header>
 );

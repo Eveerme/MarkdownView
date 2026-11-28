@@ -11,10 +11,11 @@ import type { CSSProperties, PointerEvent as ReactPointerEvent } from "react";
 import { ConfirmDialog } from "#src/components/workspace/confirm-dialog.tsx";
 import { EditorPane } from "#src/components/workspace/editor-pane.tsx";
 import { FileSidebar } from "#src/components/workspace/file-sidebar.tsx";
-import { NavigationRail } from "#src/components/workspace/navigation-rail.tsx";
 import { PreviewPane } from "#src/components/workspace/preview-pane.tsx";
 import { StatusBar } from "#src/components/workspace/status-bar.tsx";
-import { Toolbar } from "#src/components/workspace/toolbar.tsx";
+import { TabBar } from "#src/components/workspace/tab-bar.tsx";
+import { Titlebar } from "#src/components/workspace/titlebar.tsx";
+import { Topbar } from "#src/components/workspace/topbar.tsx";
 import { readingLineOf } from "#src/lib/reading-line.ts";
 import { useActiveOutline } from "#src/lib/use-active-outline.ts";
 import { useScrollSync } from "#src/lib/use-scroll-sync.ts";
@@ -219,28 +220,13 @@ export const Workspace = () => {
 
   return (
     <div className="workspace-shell" style={stageStyle}>
-      <NavigationRail
-        isDesktop={workspace.isDesktop}
-        onNew={() => {
-          workspace.actions.newDocument();
-        }}
-        onSidebarViewChange={(view) => {
-          workspace.setSidebarView(view);
-        }}
-        onToggleSidebar={() => {
-          workspace.setSidebarOpen(!workspace.sidebarOpen);
-        }}
-        sidebarOpen={workspace.sidebarOpen}
-        sidebarView={workspace.sidebarView}
-      />
+      <Titlebar dirty={workspace.dirty} fileName={workspace.fileName} />
 
-      <Toolbar
-        activeId={workspace.activeId}
+      <Topbar
+        dirty={workspace.dirty}
+        fileName={workspace.fileName}
         isDesktop={workspace.isDesktop}
         mode={workspace.mode}
-        onCloseTab={(id) => {
-          workspace.actions.closeTab(id);
-        }}
         onExport={(format) => {
           void workspace.actions.exportDocument(format);
         }}
@@ -262,11 +248,11 @@ export const Workspace = () => {
         onSaveAs={() => {
           void workspace.actions.saveAs();
         }}
-        onSelectTab={(id) => {
-          workspace.actions.switchTab(id);
+        onToggleSidebar={() => {
+          workspace.setSidebarOpen(!workspace.sidebarOpen);
         }}
         saving={workspace.saving}
-        tabs={workspace.tabs}
+        sidebarOpen={workspace.sidebarOpen}
       />
 
       <div
@@ -286,6 +272,9 @@ export const Workspace = () => {
             folders={workspace.folders}
             onClearRecent={() => {
               void workspace.actions.clearRecentFiles();
+            }}
+            onNew={() => {
+              workspace.actions.newDocument();
             }}
             onOpen={(path) => {
               workspace.actions.openPath(path);
@@ -314,6 +303,9 @@ export const Workspace = () => {
             onToggleFolder={(key) => {
               workspace.actions.toggleFolder(key);
             }}
+            onViewChange={(view) => {
+              workspace.setSidebarView(view);
+            }}
             outline={workspace.outline}
             recentFiles={workspace.recentFiles}
             view={workspace.sidebarView}
@@ -332,86 +324,102 @@ export const Workspace = () => {
           </button>
         ) : null}
 
-        <div
-          className={`workspace-content workspace-panes ${
-            split ? "split-panes" : ""
-          }`}
-          ref={panes}
-        >
-          {workspace.mode === "preview" ? null : (
-            <div
-              className={
-                split
-                  ? "split-editor min-h-0 min-w-0"
-                  : "min-h-0 min-w-0 flex-1"
-              }
-            >
-              <EditorPane
-                focusMode={settings.focusMode}
-                lineNumbers={settings.lineNumbers}
-                onChange={(value) => {
-                  workspace.setContent(value);
+        <div className="workspace-main">
+          <TabBar
+            activeId={workspace.activeId}
+            onClose={(id) => {
+              workspace.actions.closeTab(id);
+            }}
+            onNew={() => {
+              workspace.actions.newDocument();
+            }}
+            onSelect={(id) => {
+              workspace.actions.switchTab(id);
+            }}
+            tabs={workspace.tabs}
+          />
+
+          <div
+            className={`workspace-content workspace-panes ${
+              split ? "split-panes" : ""
+            }`}
+            ref={panes}
+          >
+            {workspace.mode === "preview" ? null : (
+              <div
+                className={
+                  split
+                    ? "split-editor min-h-0 min-w-0"
+                    : "min-h-0 min-w-0 flex-1"
+                }
+              >
+                <EditorPane
+                  focusMode={settings.focusMode}
+                  lineNumbers={settings.lineNumbers}
+                  onChange={(value) => {
+                    workspace.setContent(value);
+                  }}
+                  onImagePaste={handleImagePaste}
+                  onViewChange={setEditorView}
+                  reveal={workspace.editorReveal}
+                  typewriterMode={settings.typewriterMode}
+                  value={workspace.content}
+                  wordWrap={settings.wordWrap}
+                />
+              </div>
+            )}
+
+            {split ? (
+              <button
+                aria-label="调整分栏宽度"
+                className="workspace-divider group"
+                onDoubleClick={() => {
+                  applyRatio(0.5);
+                  update({ splitRatio: ratioRef.current });
                 }}
-                onImagePaste={handleImagePaste}
-                onViewChange={setEditorView}
-                reveal={workspace.editorReveal}
-                typewriterMode={settings.typewriterMode}
-                value={workspace.content}
-                wordWrap={settings.wordWrap}
-              />
-            </div>
-          )}
+                onPointerDown={startResize}
+                title="拖动调整宽度，双击恢复 50%"
+                type="button"
+              >
+                <span aria-hidden="true" className="workspace-divider-track" />
+                <span aria-hidden="true" className="workspace-divider-grip" />
+              </button>
+            ) : null}
 
-          {split ? (
-            <button
-              aria-label="调整分栏宽度"
-              className="workspace-divider group"
-              onDoubleClick={() => {
-                applyRatio(0.5);
-                update({ splitRatio: ratioRef.current });
-              }}
-              onPointerDown={startResize}
-              title="拖动调整宽度，双击恢复 50%"
-              type="button"
-            >
-              <span aria-hidden="true" className="workspace-divider-track" />
-              <span aria-hidden="true" className="workspace-divider-grip" />
-            </button>
-          ) : null}
+            {workspace.mode === "edit" ? null : (
+              <div
+                className={
+                  split
+                    ? "split-preview min-h-0 min-w-0"
+                    : "min-h-0 min-w-0 flex-1"
+                }
+              >
+                <PreviewPane
+                  content={previewContent}
+                  filePath={workspace.filePath}
+                  key={workspace.filePath ?? "scratch"}
+                  onOpenLink={openLink}
+                  onScrollContainerChange={setPreviewElement}
+                  onScrollHandled={clearPreviewTarget}
+                  onSelectLine={focusLine}
+                  scrollTarget={workspace.previewTarget}
+                  showFrontMatter={settings.showFrontMatter}
+                />
+              </div>
+            )}
+          </div>
 
-          {workspace.mode === "edit" ? null : (
-            <div
-              className={
-                split
-                  ? "split-preview min-h-0 min-w-0"
-                  : "min-h-0 min-w-0 flex-1"
-              }
-            >
-              <PreviewPane
-                content={previewContent}
-                filePath={workspace.filePath}
-                key={workspace.filePath ?? "scratch"}
-                onOpenLink={openLink}
-                onScrollContainerChange={setPreviewElement}
-                onScrollHandled={clearPreviewTarget}
-                onSelectLine={focusLine}
-                scrollTarget={workspace.previewTarget}
-                showFrontMatter={settings.showFrontMatter}
-              />
-            </div>
-          )}
+          <StatusBar
+            content={workspace.content}
+            dirty={workspace.dirty}
+            fileName={workspace.fileName}
+            filePath={workspace.filePath}
+            isDesktop={workspace.isDesktop}
+            savedAt={workspace.savedAt}
+            saving={workspace.saving}
+          />
         </div>
       </div>
-
-      <StatusBar
-        content={workspace.content}
-        dirty={workspace.dirty}
-        fileName={workspace.fileName}
-        filePath={workspace.filePath}
-        isDesktop={workspace.isDesktop}
-        savedAt={workspace.savedAt}
-        saving={workspace.saving}
-      />
 
       <ConfirmDialog
         message={workspace.confirmation.message}
