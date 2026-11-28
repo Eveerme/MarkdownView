@@ -76,6 +76,7 @@ catalog:
   "@tauri-apps/cli": ^2.9.0
   "@lezer/highlight": ^1.2.5
   "@codemirror/language": ^6.13.1
+  "@codemirror/search": ^6.7.2
 
 overrides:
   vite@*: "catalog:"

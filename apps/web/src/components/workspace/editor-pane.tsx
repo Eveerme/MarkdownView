@@ -1,12 +1,14 @@
 import { markdown } from "@codemirror/lang-markdown";
 import { HighlightStyle, syntaxHighlighting } from "@codemirror/language";
+import { search } from "@codemirror/search";
 import { EditorView, lineNumbers } from "@codemirror/view";
 import { tags } from "@lezer/highlight";
 import CodeMirror from "@uiw/react-codemirror";
 import type { ReactCodeMirrorRef } from "@uiw/react-codemirror";
 import { useEffect, useMemo, useRef, useState } from "react";
-import type { ClipboardEvent, DragEvent } from "react";
+import type { ClipboardEvent, DragEvent, KeyboardEvent } from "react";
 
+import { SearchPanel } from "#src/components/workspace/search-panel.tsx";
 import { publishCursor } from "#src/lib/editor-cursor.ts";
 
 const markdownHighlight = HighlightStyle.define([
@@ -30,6 +32,7 @@ const markdownHighlight = HighlightStyle.define([
 
 const extensions = [
   markdown(),
+  search(),
   EditorView.contentAttributes.of({ "aria-label": "Markdown 源码" }),
   syntaxHighlighting(markdownHighlight),
   // The caret lives in a store, so moving it repaints the footer, not the app.
@@ -126,6 +129,9 @@ export const EditorPane = ({
 }: EditorPaneProps) => {
   const editor = useRef<ReactCodeMirrorRef>(null);
   const [view, setView] = useState<EditorView | null>(null);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [replaceOpen, setReplaceOpen] = useState(false);
+  const [searchSignal, setSearchSignal] = useState(0);
 
   useEffect(
     () => () => {
@@ -198,10 +204,44 @@ export const EditorPane = ({
     applyReveal(view, reveal);
   }, [reveal, view]);
 
+  const openSearch = (withReplace: boolean) => {
+    setReplaceOpen(withReplace);
+    setSearchOpen(true);
+    setSearchSignal((current) => current + 1);
+  };
+
+  const handleKeyDownCapture = (event: KeyboardEvent<HTMLDivElement>) => {
+    const modifier = event.ctrlKey || event.metaKey;
+
+    if (modifier && !event.altKey && event.key.toLowerCase() === "f") {
+      event.preventDefault();
+      event.stopPropagation();
+      openSearch(false);
+
+      return;
+    }
+
+    if (modifier && !event.altKey && event.key.toLowerCase() === "h") {
+      event.preventDefault();
+      event.stopPropagation();
+      openSearch(true);
+
+      return;
+    }
+
+    if (event.key === "Escape" && searchOpen) {
+      event.preventDefault();
+      event.stopPropagation();
+      setSearchOpen(false);
+      setReplaceOpen(false);
+    }
+  };
+
   return (
     <div
-      className={`editor-pane h-full min-h-0 overflow-hidden${focusMode ? " focus-mode" : ""}`}
+      className={`editor-pane relative h-full min-h-0 overflow-hidden${focusMode ? " focus-mode" : ""}`}
       onDropCapture={dropImage}
+      onKeyDownCapture={handleKeyDownCapture}
       onPasteCapture={pasteImage}
     >
       <CodeMirror
@@ -212,6 +252,7 @@ export const EditorPane = ({
           highlightActiveLine: true,
           highlightActiveLineGutter: false,
           lineNumbers: false,
+          searchKeymap: false,
         }}
         className="h-full"
         extensions={editorExtensions}
@@ -225,6 +266,16 @@ export const EditorPane = ({
         ref={editor}
         theme="none"
         value={value}
+      />
+      <SearchPanel
+        focusSignal={searchSignal}
+        onClose={() => {
+          setSearchOpen(false);
+          setReplaceOpen(false);
+        }}
+        open={searchOpen}
+        replaceOpen={replaceOpen}
+        view={view}
       />
     </div>
   );

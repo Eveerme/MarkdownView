@@ -924,6 +924,221 @@
   background: color-mix(in oklch, var(--primary) 65%, var(--card));
 }
 
+/* Floating find and replace panel. */
+.search-panel {
+  position: absolute;
+  z-index: 20;
+  top: 10px;
+  right: 10px;
+  bottom: auto;
+  left: auto;
+  width: 356px;
+  max-width: calc(100% - 20px);
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 11px;
+  background: var(--popover);
+  color: var(--foreground);
+  box-shadow:
+    0 16px 40px rgb(15 23 42 / 16%),
+    0 2px 6px rgb(15 23 42 / 8%);
+}
+
+.search-panel-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 9px;
+  border-bottom: 1px solid var(--border);
+}
+
+.search-panel-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--foreground);
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.search-panel-title > svg {
+  width: 13px;
+  height: 13px;
+  color: var(--muted-foreground);
+}
+
+.search-panel-count {
+  color: var(--muted-foreground);
+  font-size: 9px;
+  font-weight: 400;
+}
+
+.search-panel-tools {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  margin-left: auto;
+}
+
+.search-flag,
+.search-panel-close,
+.search-step {
+  display: grid;
+  width: 25px;
+  height: 24px;
+  place-items: center;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--muted-foreground);
+}
+
+.search-flag > svg,
+.search-panel-close > svg,
+.search-step > svg {
+  width: 13px;
+  height: 13px;
+}
+
+.search-flag:hover,
+.search-panel-close:hover,
+.search-step:hover {
+  background: var(--muted);
+  color: var(--foreground);
+}
+
+.search-flag-active {
+  background: var(--accent);
+  color: var(--accent-foreground);
+}
+
+.search-panel-close {
+  margin-left: 2px;
+}
+
+.search-panel-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 9px;
+}
+
+.search-panel-replace {
+  padding-top: 0;
+}
+
+.search-field {
+  display: flex;
+  min-width: 0;
+  height: 28px;
+  flex: 1;
+  align-items: center;
+  gap: 6px;
+  padding: 0 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--card);
+  color: var(--muted-foreground);
+}
+
+.search-field:focus-within {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 2px color-mix(in oklch, var(--primary) 10%, transparent);
+}
+
+.search-field > svg {
+  width: 12px;
+  height: 12px;
+  flex-shrink: 0;
+}
+
+.search-field input {
+  width: 100%;
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--foreground);
+  font: inherit;
+  font-size: 10px;
+}
+
+.search-field input::placeholder {
+  color: var(--muted-foreground);
+}
+
+.search-step {
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--card);
+}
+
+.search-action {
+  height: 27px;
+  flex-shrink: 0;
+  padding: 0 9px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--card);
+  color: var(--secondary-foreground);
+  font: inherit;
+  font-size: 9px;
+}
+
+.search-action:hover {
+  background: var(--muted);
+}
+
+.search-action-primary {
+  border-color: var(--primary);
+  background: var(--primary);
+  color: var(--primary-foreground);
+}
+
+.search-action-primary:hover {
+  background: color-mix(in oklch, var(--primary) 88%, transparent);
+}
+
+.search-panel-foot {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 9px;
+  border-top: 1px solid var(--border);
+  background: var(--muted);
+  color: var(--muted-foreground);
+  font-size: 8px;
+}
+
+.search-panel-spacer {
+  flex: 1;
+}
+
+.search-kbd {
+  padding: 1px 4px;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  background: var(--card);
+  color: var(--muted-foreground);
+  font-family: var(--font-mono);
+  font-size: 7px;
+}
+
+.editor-pane .cm-searchMatch {
+  border-radius: 2px;
+  background: light-dark(#dce8ff, #25344a);
+}
+
+.editor-pane .cm-searchMatch-selected {
+  background: light-dark(#b9d0ff, #3b5a86);
+  box-shadow: 0 0 0 1px light-dark(#7ea6ea, #89aef0);
+}
+
 /* Writing surfaces */
 
 .split-panes {

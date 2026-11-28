@@ -167,6 +167,30 @@ test("a single editor newline becomes a line break in the preview", async ({
   expect(await paragraph.locator("br").count()).toBe(1);
 });
 
+test("the floating find and replace panel searches and replaces", async ({
+  page,
+}) => {
+  await visit(page, "/");
+
+  await page.locator(".cm-content").click();
+  await page.keyboard.press("Control+F");
+
+  const panel = page.getByRole("dialog", { name: "查找与替换" });
+
+  await expect(panel).toBeVisible();
+  await expect(page.locator(".cm-search")).toHaveCount(0);
+
+  await panel.getByRole("textbox", { name: "查找" }).fill("欢迎");
+  await expect(panel).toContainText(/[1-9]\d* \/ \d+/u);
+
+  await page.keyboard.press("Control+H");
+  await expect(panel.getByRole("textbox", { name: "替换为" })).toBeVisible();
+
+  await panel.getByRole("textbox", { name: "替换为" }).fill("你好");
+  await panel.getByRole("button", { name: "全部替换" }).click();
+  await expect(page.locator(".cm-content")).toContainText("你好使用");
+});
+
 test("typing Markdown renders in the preview", async ({ page }) => {
   await visit(page, "/");
 
