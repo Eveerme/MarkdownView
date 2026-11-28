@@ -56,7 +56,7 @@ Converge on the simplest durable design that meets current requirements, and lan
 
 `vp run dev` serves the app on :5173. `vp run build` writes static files to `apps/web/dist`; there is no server.
 
-The desktop app wraps `apps/web`: `vp run dev` starts the web dev server and opens it in a Tauri WebView2 window; `vp run package:desktop` builds the web app and packages an NSIS installer. `tauri.conf.json` points `frontendDist` at `apps/web/dist` and builds it before packaging. Rust rebuilds automatically during `tauri dev`. The renderer talks to Rust only through the `window.desktop` adapter in `apps/web/src/lib/desktop.ts`, which implements the shared contract in `packages/desktop-contract`. Local note images use the `mdview://asset/` scheme registered in Rust.
+The desktop app wraps `apps/web`: `vp run dev` starts the web dev server and opens it in a Tauri WebView2 window; `vp run package:desktop` builds the web app and packages an NSIS installer. `tauri.conf.json` points `frontendDist` at `apps/web/dist` and builds it before packaging. Rust rebuilds automatically during `tauri dev`. The renderer talks to Rust only through the `window.desktop` adapter in `apps/web/src/lib/desktop.ts`, which implements the shared contract in `packages/desktop-contract`. Local note images use the `mdview://localhost/asset/` custom protocol; WebView2 reaches the same handler through `http://mdview.localhost/asset/`, because it does not fetch a custom scheme from an `<img>`.
 
 ## Conventions
 
