@@ -1,5 +1,16 @@
 # 更新日志
 
+## v1.3.1
+
+### 修复问题
+
+- 修复 Windows 上 README 等文档中的相对路径图片无法显示的问题。WebView2 不加载 `mdview://` 子资源，现在 Windows 改用同一协议处理器的 `http://mdview.localhost/asset/` 映射地址。
+- CSP 同时放行 `http://mdview.localhost` 与 `https://mdview.localhost`。
+
+### 下载地址
+
+https://github.com/Eveerme/MarkdownView/releases/tag/v1.3.1
+
 ## v1.3.0
 
 ### 新增功能
