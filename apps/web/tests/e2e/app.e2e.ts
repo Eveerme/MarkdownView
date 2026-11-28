@@ -191,6 +191,44 @@ test("the floating find and replace panel searches and replaces", async ({
   await expect(page.locator(".cm-content")).toContainText("你好使用");
 });
 
+test("the search panel moves and remembers its opacity", async ({ page }) => {
+  await visit(page, "/");
+  await page.locator(".cm-content").click();
+  await page.keyboard.press("Control+F");
+
+  const panel = page.getByRole("dialog", { name: "查找与替换" });
+  const before = await panel.boundingBox();
+
+  if (before === null) {
+    throw new Error("Search panel is missing");
+  }
+
+  await page.mouse.move(before.x + 30, before.y + 10);
+  await page.mouse.down();
+  await page.mouse.move(before.x - 40, before.y + 80);
+  await page.mouse.up();
+
+  const moved = await panel.boundingBox();
+
+  expect(moved?.x).toBeLessThan(before.x - 40);
+  expect(moved?.y).toBeGreaterThan(before.y + 40);
+
+  await page.getByLabel("透明度").fill("70");
+  await expect(panel).toHaveCSS("opacity", "0.7");
+
+  await page.reload({ waitUntil: "networkidle" });
+  await page.locator(".cm-content").click();
+  await page.keyboard.press("Control+F");
+
+  const reopened = page.getByRole("dialog", { name: "查找与替换" });
+
+  await expect(reopened).toHaveCSS("opacity", "0.7");
+  const restored = await reopened.boundingBox();
+
+  expect(restored?.x).toBeCloseTo(moved?.x ?? 0, 0);
+  expect(restored?.y).toBeCloseTo(moved?.y ?? 0, 0);
+});
+
 test("typing Markdown renders in the preview", async ({ page }) => {
   await visit(page, "/");
 

@@ -11,6 +11,7 @@ import {
   CaseSensitiveIcon,
   ChevronDownIcon,
   ChevronUpIcon,
+  GripVerticalIcon,
   RegexIcon,
   ReplaceIcon,
   SearchIcon,
@@ -18,7 +19,13 @@ import {
   XIcon,
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
-import type { KeyboardEvent, ReactNode } from "react";
+import type {
+  CSSProperties,
+  KeyboardEvent,
+  PointerEvent,
+  ReactNode,
+} from "react";
+import { z } from "zod";
 
 interface SearchPanelProps {
   focusSignal: number;
@@ -32,6 +39,49 @@ interface Match {
   from: number;
   to: number;
 }
+
+interface SearchPanelPlacement {
+  left: number;
+  top: number;
+}
+
+const storageKey = "markdownview:search-panel";
+
+const storedPanelSchema = z.object({
+  left: z.number().optional(),
+  opacity: z.number().min(0.55).max(1).default(1),
+  top: z.number().optional(),
+});
+
+const readStoredPanel = () => {
+  try {
+    const raw = localStorage.getItem(storageKey);
+
+    if (raw === null) {
+      return { opacity: 1, placement: null };
+    }
+
+    const parsed = storedPanelSchema.safeParse(JSON.parse(raw));
+
+    if (!parsed.success) {
+      return { opacity: 1, placement: null };
+    }
+
+    const { left, opacity, top } = parsed.data;
+
+    const placement =
+      left === undefined || top === undefined ? null : { left, top };
+
+    return { opacity, placement };
+  } catch {
+    return { opacity: 1, placement: null };
+  }
+};
+
+type CustomProperties = CSSProperties & Record<`--${string}`, string>;
+
+const clamp = (value: number, min: number, max: number) =>
+  Math.min(max, Math.max(min, value));
 
 const FlagButton = ({
   active,
@@ -80,6 +130,15 @@ export const SearchPanel = ({
   view,
 }: SearchPanelProps) => {
   const input = useRef<HTMLInputElement>(null);
+  const panel = useRef<HTMLDialogElement>(null);
+  const drag = useRef<{ dx: number; dy: number } | null>(null);
+
+  const [panelPosition, setPanelPosition] =
+    useState<SearchPanelPlacement | null>(() => readStoredPanel().placement);
+
+  const positionRef = useRef(panelPosition);
+  const [opacity, setOpacity] = useState(() => readStoredPanel().opacity);
+  const [dragging, setDragging] = useState(false);
   const [search, setSearch] = useState("");
   const [replace, setReplace] = useState("");
   const [caseSensitive, setCaseSensitive] = useState(false);
@@ -105,16 +164,24 @@ export const SearchPanel = ({
     matches = collectMatches(view, query);
   }
 
-  const position = view?.state.selection.main.from ?? 0;
+  const cursorPosition = view?.state.selection.main.from ?? 0;
 
   const index = matches.findIndex(
-    (match) => match.from <= position && position <= match.to
+    (match) => match.from <= cursorPosition && cursorPosition <= match.to
   );
 
   const activeIndex = matches.length === 0 ? 0 : Math.max(index, 0);
 
   const count =
     search === "" ? "0 / 0" : `${activeIndex + 1} / ${matches.length}`;
+
+  const panelStyle: CustomProperties = {
+    "--search-left":
+      panelPosition === null ? "auto" : `${panelPosition.left}px`,
+    "--search-opacity": String(opacity),
+    "--search-right": panelPosition === null ? "10px" : "auto",
+    "--search-top": panelPosition === null ? "10px" : `${panelPosition.top}px`,
+  };
 
   useEffect(() => {
     if (!open || view === null) {
@@ -213,6 +280,90 @@ export const SearchPanel = ({
     setRevision((value) => value + 1);
   };
 
+  const persistPanel = (
+    nextPosition: SearchPanelPlacement | null,
+    nextOpacity: number
+  ) => {
+    localStorage.setItem(
+      storageKey,
+      JSON.stringify({
+        left: nextPosition?.left,
+        opacity: nextOpacity,
+        top: nextPosition?.top,
+      })
+    );
+  };
+
+  const startDrag = (event: PointerEvent<HTMLDivElement>) => {
+    if (
+      event.target instanceof Element &&
+      event.target.closest("button") !== null
+    ) {
+      return;
+    }
+
+    const element = panel.current;
+    const parent = element?.parentElement ?? null;
+
+    if (element === null || parent === null) {
+      return;
+    }
+
+    event.preventDefault();
+
+    const bounds = element.getBoundingClientRect();
+    drag.current = {
+      dx: event.clientX - bounds.left,
+      dy: event.clientY - bounds.top,
+    };
+    event.currentTarget.setPointerCapture(event.pointerId);
+    setDragging(true);
+  };
+
+  const moveDrag = (event: PointerEvent<HTMLDivElement>) => {
+    const dragState = drag.current;
+    const element = panel.current;
+    const parent = element?.parentElement ?? null;
+
+    if (dragState === null || element === null || parent === null) {
+      return;
+    }
+
+    const bounds = parent.getBoundingClientRect();
+
+    const next = {
+      left: clamp(
+        event.clientX - bounds.left - dragState.dx,
+        8,
+        Math.max(8, bounds.width - element.offsetWidth - 8)
+      ),
+      top: clamp(
+        event.clientY - bounds.top - dragState.dy,
+        8,
+        Math.max(8, bounds.height - element.offsetHeight - 8)
+      ),
+    };
+
+    positionRef.current = next;
+    setPanelPosition(next);
+  };
+
+  const endDrag = () => {
+    if (drag.current === null) {
+      return;
+    }
+
+    drag.current = null;
+    setDragging(false);
+    persistPanel(positionRef.current, opacity);
+  };
+
+  const resetPosition = () => {
+    positionRef.current = null;
+    setPanelPosition(null);
+    persistPanel(null, opacity);
+  };
+
   const close = () => {
     if (view !== null) {
       view.dispatch({
@@ -245,8 +396,25 @@ export const SearchPanel = ({
   };
 
   return (
-    <dialog aria-label="查找与替换" className="search-panel" open>
-      <div className="search-panel-head">
+    <dialog
+      aria-label="查找与替换"
+      className={`search-panel ${dragging ? "search-panel-dragging" : ""}`}
+      open
+      ref={panel}
+      style={panelStyle}
+    >
+      <div
+        className="search-panel-head"
+        onDoubleClick={resetPosition}
+        onPointerCancel={endDrag}
+        onPointerDown={startDrag}
+        onPointerMove={moveDrag}
+        onPointerUp={endDrag}
+        title="拖动移动，双击复位"
+      >
+        <span className="search-panel-grip">
+          <GripVerticalIcon />
+        </span>
         <div className="search-panel-title">
           <SearchIcon />
           查找与替换
@@ -362,8 +530,30 @@ export const SearchPanel = ({
         <span className="search-kbd">Shift+Enter</span>
         <span>上一个</span>
         <span className="search-panel-spacer" />
-        <span className="search-kbd">Esc</span>
-        <span>关闭</span>
+        <label className="search-opacity">
+          透明度
+          <input
+            aria-label="透明度"
+            max={100}
+            min={55}
+            onChange={(event) => {
+              const next = Number(event.currentTarget.value) / 100;
+              setOpacity(next);
+              persistPanel(positionRef.current, next);
+            }}
+            step={1}
+            type="range"
+            value={Math.round(opacity * 100)}
+          />
+          <b>{Math.round(opacity * 100)}%</b>
+        </label>
+      </div>
+      <div className="search-panel-hint">
+        <b>拖动标题栏移动</b>
+        <span>·</span>
+        <b>双击复位</b>
+        <span>·</span>
+        <span>位置和透明度会记住</span>
       </div>
     </dialog>
   );
